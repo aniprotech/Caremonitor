@@ -50,7 +50,7 @@ export default function SharedOptionField({ kind, label, value, onChange, builtI
         <input className="mt-1 block w-full rounded border p-2" value={name} onChange={event => setName(event.target.value)} maxLength={120} />
       </label>
       <button type="button" disabled={busy} className="rounded bg-customNavy px-4 py-2 text-sm text-white disabled:opacity-50" onClick={add}>Save option</button>
-      <p className="w-full text-xs text-slate-600">Options are shared with other organisations. Do not enter a client's name or personal details.</p>
+      <p className="w-full text-xs text-slate-600">Options are shared throughout Caremonitor. Do not enter a client's name or personal details.</p>
     </div>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
   </div>;

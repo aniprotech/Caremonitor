@@ -345,6 +345,14 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
           {
             ethnicity: "Test",
             medicalHistory: ["Test condition"],
+            healthWelfareLpa: "YES",
+            healthWelfareLpaReference: "HW-LPA-1024",
+            healthWelfareLpaDate: "2025-04-18",
+            healthWelfareLpaExpiry: "",
+            propertyFinancialLpa: "YES",
+            propertyFinancialLpaReference: "PF-LPA-2048",
+            propertyFinancialLpaDate: "2024-12-01",
+            propertyFinancialLpaExpiry: "2029-12-01",
             clientEmergencyContacts: [
               {
                 firstName: "Contact",
@@ -362,6 +370,10 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
           data(response).clientEmergencyContacts[0].firstName,
           "Contact",
         );
+        assert.equal(data(response).healthWelfareLpaReference, "HW-LPA-1024");
+        assert.equal(data(response).healthWelfareLpaDate, "2025-04-18");
+        assert.equal(data(response).healthWelfareLpaExpiry, null);
+        assert.equal(data(response).propertyFinancialLpaExpiry, "2029-12-01");
       },
     );
     await t.test(

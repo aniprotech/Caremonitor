@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useFormikContext } from "formik";
-import DropdownField from "../../../../../components/DropdownInput/Dropdown";
+import SharedOptionField from "../../../../../components/SharedOptionField";
 import TextField from "../../../../../components/TextInput/TextInput";
 import PhoneNumberField from "../../../../../components/DropdownInput/PhoneNumberDropdown";
 import CheckboxButtonGroup from "../../../../../components/TextInput/CheckboxButtonGroup";
@@ -33,13 +33,12 @@ const EditClientKeyContactForm = ({ index }) => {
                 valueChange={(e) => setFieldValue(`keyContacts.clientEmergencyContacts.${index}.lastName`, e.target.value)}
             />
 
-            <DropdownField
+            <SharedOptionField
                 label={`Relationship to ${clientName}`}
-                name={`keyContacts.clientEmergencyContacts.${index}.relationShip`}
-                options={teamsRelationshipOptions}
+                kind="relationship"
+                builtIn={teamsRelationshipOptions}
                 value={contact.relationShip || ""}
-                valueChange={(e) => setFieldValue(`keyContacts.clientEmergencyContacts.${index}.relationShip`, e.target.value)}
-                componentName="FormikValidation"
+                onChange={(value) => setFieldValue(`keyContacts.clientEmergencyContacts.${index}.relationShip`, value)}
             />
 
             <PhoneNumberField

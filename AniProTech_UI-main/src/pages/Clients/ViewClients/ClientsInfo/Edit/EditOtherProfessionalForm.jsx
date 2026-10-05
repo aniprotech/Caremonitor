@@ -1,11 +1,10 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useFormikContext } from "formik";
-import DropdownField from "../../../../../components/DropdownInput/Dropdown";
+import SharedOptionField from "../../../../../components/SharedOptionField";
 import TextField from "../../../../../components/TextInput/TextInput";
 import PhoneNumberField from "../../../../../components/DropdownInput/PhoneNumberDropdown";
 import StatusToggleButtonGroup from "../../../../../components/TextInput/StatusToggleButtonGroup";
-import { teamsRelationshipOptions } from "../../../../../constants/teamConstants";
 import { clientskeysContactOptions } from "../../../../../constants/clientConstants";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
 
@@ -38,13 +37,35 @@ const EditOtherProfessionalForm = ({ index }) => {
                 valueChange={(e) => setFieldValue(`keyContacts.clientProfessionals.${index}.serviceName`, e.target.value)}
             />
 
-            <DropdownField
+            <SharedOptionField
                 label="Role"
-                name={`keyContacts.clientProfessionals.${index}.role`}
-                options={teamsRelationshipOptions}
+                kind="professional_role"
+                builtIn={[
+                    { label: "Social worker", value: "Social worker" },
+                    { label: "Art therapist", value: "Art therapist" },
+                    { label: "Drama therapist", value: "Drama therapist" },
+                    { label: "Music therapist", value: "Music therapist" },
+                    { label: "Podiatrist / chiropodist", value: "Podiatrist / chiropodist" },
+                    { label: "Occupational therapist", value: "Occupational therapist" },
+                    { label: "Physiotherapist", value: "Physiotherapist" },
+                    { label: "Speech and language therapist", value: "Speech and language therapist" },
+                    { label: "Dietitian", value: "Dietitian" },
+                    { label: "Operating department practitioner", value: "Operating department practitioner" },
+                    { label: "Orthoptist", value: "Orthoptist" },
+                    { label: "Paramedic", value: "Paramedic" },
+                    { label: "Prosthetist / orthotist", value: "Prosthetist / orthotist" },
+                    { label: "Diagnostic radiographer", value: "Diagnostic radiographer" },
+                    { label: "Therapeutic radiographer", value: "Therapeutic radiographer" },
+                    { label: "Community nurse", value: "Community nurse" },
+                    { label: "District nurse", value: "District nurse" },
+                    { label: "Learning disability nurse", value: "Learning disability nurse" },
+                    { label: "Mental health nurse", value: "Mental health nurse" },
+                    { label: "GP", value: "GP" },
+                    { label: "Pharmacist", value: "Pharmacist" },
+                    { label: "Psychologist", value: "Psychologist" },
+                ]}
                 value={professional.role || ""}
-                valueChange={(e) => setFieldValue(`keyContacts.clientProfessionals.${index}.role`, e.target.value)}
-                componentName="FormikValidation"
+                onChange={(value) => setFieldValue(`keyContacts.clientProfessionals.${index}.role`, value)}
             />
 
             <PhoneNumberField

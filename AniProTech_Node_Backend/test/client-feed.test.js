@@ -145,6 +145,12 @@ test("Client profile and live feed", async (t) => {
       assert.equal(addedReligion.status, 201);
       const sharedReligion = await call("get", "/api/onboarding-options?kind=religion", undefined, ot);
       assert.ok(data(sharedReligion).options.includes("Test belief"));
+      const addedProfessionalRole = await call("post", "/api/onboarding-options", { kind: "professional_role", name: "Care coordinator" });
+      assert.equal(addedProfessionalRole.status, 201, addedProfessionalRole.body.message);
+      const sharedProfessionalRole = await call("get", "/api/onboarding-options?kind=professional_role", undefined, ot);
+      assert.ok(data(sharedProfessionalRole).options.includes("Care coordinator"));
+      const addedRelationship = await call("post", "/api/onboarding-options", { kind: "relationship", name: "Family friend" });
+      assert.equal(addedRelationship.status, 201, addedRelationship.body.message);
       const carerAdd = await call("post", "/api/onboarding-options", { kind: "religion", name: "Private note" }, ct);
       assert.equal(carerAdd.status, 403);
       const invalid = await call("post", "/api/clinical-catalog", { kind: "history", name: "<script>" });

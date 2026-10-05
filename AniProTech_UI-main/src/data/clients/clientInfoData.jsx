@@ -76,7 +76,13 @@ export const clinicalDetailsData = (data) => ({
 export const futurePlanningData = (data) => ({
     healthCapacityDecision: data?.healthCapacityDecision || null,
     healthWelfareLpa: data?.healthWelfareLpa || null,
+    healthWelfareLpaReference: data?.healthWelfareLpaReference || "",
+    healthWelfareLpaDate: data?.healthWelfareLpaDate || "",
+    healthWelfareLpaExpiry: data?.healthWelfareLpaExpiry || "",
     propertyFinancialLpa: data?.propertyFinancialLpa || null,
+    propertyFinancialLpaReference: data?.propertyFinancialLpaReference || "",
+    propertyFinancialLpaDate: data?.propertyFinancialLpaDate || "",
+    propertyFinancialLpaExpiry: data?.propertyFinancialLpaExpiry || "",
     dnacpr: data?.dnacpr || null,
     adrt: data?.adrt || null,
     respect: data?.respect || null,

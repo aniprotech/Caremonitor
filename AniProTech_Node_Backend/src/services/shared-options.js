@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { fail, reply } from "../http.js";
 
-export const sharedOptionKinds = new Set(["ethnicity", "religion", "sexual_orientation", "gender", "history", "medicine", "hospital"]);
+export const sharedOptionKinds = new Set(["ethnicity", "religion", "sexual_orientation", "gender", "history", "medicine", "hospital", "relationship", "professional_role"]);
 
 export function normaliseSharedOption(input) {
   const name = String(input ?? "").trim().replace(/\s+/g, " ");

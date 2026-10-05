@@ -41,6 +41,16 @@ for (const [name,column,type] of [
   ['stockUnit','stock_unit','String'],
   ['lowStockThreshold','low_stock_threshold','BigDecimal'],
 ]) entities.ClientMedicationSchedulingEntity.fields.push({name,javaName:name,column,type});
+for (const [name,column,type] of [
+  ['healthWelfareLpaReference','health_welfare_lpa_reference','String'],
+  ['healthWelfareLpaDate','health_welfare_lpa_date','LocalDate'],
+  ['healthWelfareLpaExpiry','health_welfare_lpa_expiry','LocalDate'],
+  ['propertyFinancialLpaReference','property_financial_lpa_reference','String'],
+  ['propertyFinancialLpaDate','property_financial_lpa_date','LocalDate'],
+  ['propertyFinancialLpaExpiry','property_financial_lpa_expiry','LocalDate'],
+]) entities.ClientInformationEntity.fields.push({name,javaName:name,column,type});
+const emergencyRelationship = entities.ClientEmergencyContactsEntity.fields.find(field => field.name === 'relationShip');
+if (emergencyRelationship) { emergencyRelationship.type = 'String'; emergencyRelationship.enumName = null; }
 export const quote = (s) => '"' + s.replaceAll('"', '""') + '"';
 
 export async function openDatabase(config) {
@@ -150,6 +160,12 @@ export async function initializeSchema(db) {
       if (current !== "text") await db.query(`ALTER TABLE client_information ALTER COLUMN ${quote(column)} TYPE text USING ${quote(column)}::text`);
     }
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS hospital_name text");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS health_welfare_lpa_reference text");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS health_welfare_lpa_date date");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS health_welfare_lpa_expiry date");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_reference text");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_date date");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_expiry date");
     await db.query("CREATE TABLE IF NOT EXISTS node_clinical_terms (id uuid PRIMARY KEY, agency_id uuid NOT NULL, kind text NOT NULL CHECK(kind IN ('history','medicine','hospital')), name text NOT NULL, created_by uuid NOT NULL, created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)");
     await db.query("CREATE UNIQUE INDEX IF NOT EXISTS node_clinical_terms_unique ON node_clinical_terms (agency_id,kind,lower(name))");
     await db.query(
@@ -184,4 +200,3 @@ export async function initializeSchema(db) {
       await initializeReferenceData(db);
   });
 }
-

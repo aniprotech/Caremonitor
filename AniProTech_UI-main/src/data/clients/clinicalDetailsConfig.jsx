@@ -44,7 +44,13 @@ export const futurePlanningConfig = [
         fields: [
             { label: (clientName) => `Does ${clientName} have capacity to make decisions related to their health and wellbeing?`, key: "healthCapacityDecision" },
             { label: "Health and Welfare LPA", key: "healthWelfareLpa" },
+            { label: "Health and Welfare LPA / POA reference", key: "healthWelfareLpaReference" },
+            { label: "Health and Welfare LPA registered date", key: "healthWelfareLpaDate" },
+            { label: "Health and Welfare LPA end/revocation date", key: "healthWelfareLpaExpiry" },
             { label: "Property and Financial Affairs LPA", key: "propertyFinancialLpa" },
+            { label: "Property and Financial LPA / POA reference", key: "propertyFinancialLpaReference" },
+            { label: "Property and Financial LPA registered date", key: "propertyFinancialLpaDate" },
+            { label: "Property and Financial LPA end/revocation date", key: "propertyFinancialLpaExpiry" },
             { label: "Do Not Attempt Cardiopulmonary Resuscitation (DNACPR)", key: "dnacpr" },
             { label: "Advance Decision to Refuse Treatment (ADRT / Living Will)", key: "adrt" },
             { label: "Recommended Summary Plan for Emergency Care and Treatment (ReSPECT)", key: "respect" },
