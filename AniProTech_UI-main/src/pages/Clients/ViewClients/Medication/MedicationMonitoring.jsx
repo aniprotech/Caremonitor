@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import {useSearchParams} from "react-router-dom";
 import MedicationMonitoringHeader from "./MedicationMonitoringHeader"
 import { useNavigationHelpers } from "../../../../hooks/useNavigationHelpers";
@@ -21,7 +20,7 @@ const MedicationMonitoring = () => {
     useScrollToTop();
 
 
-    const fetchSchedulingData = useCallback(async () => {
+    const fetchSchedulingData = async () => {
         setIsLoading(true);
         try {
             const res = await _get(APIConfig.CLIENT_MEDICATION_SCHEDULING.GET_ALL_BY_CLIENT_ID(id, selectedMonth));
@@ -33,11 +32,11 @@ const MedicationMonitoring = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [id, selectedMonth]);
+    };
 
     useEffect(() => {
         fetchSchedulingData();
-    }, [fetchSchedulingData, id, selectedMonth]);
+    }, [id, selectedMonth]);
     
   return (
     <div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { _get, _post } from "../../utils/ApiService";
-import { londonToday, money } from "../../components/Operations/common-utils";
+import { londonToday, money } from "../../components/Operations/common";
 import FinanceWorkspace from "./FinanceWorkspace";
 import "./finance.css";
 const read = async (path, params) => (await _get(path, { params })).data.results.data;

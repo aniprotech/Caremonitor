@@ -42,11 +42,10 @@ export function configuration(overrides = {}) {
     microsoftRedirectUri:
       process.env.MICROSOFT_REDIRECT_URI ||
       "https://backend.aniprotech.com/api/auth/microsoft/callback",
-    tinkClientId: process.env.TINK_CLIENT_ID,
-    tinkClientSecret: process.env.TINK_CLIENT_SECRET,
-    tinkBankingEnabled: process.env.TINK_BANKING_ENABLED === "true",
-    tinkRedirectUri: process.env.TINK_REDIRECT_URI ||
-      "https://backend.aniprotech.com/api/accounting/banking/tink/callback",
+    saltEdgeAppId: process.env.SALT_EDGE_APP_ID,
+    saltEdgeSecret: process.env.SALT_EDGE_SECRET,
+    saltEdgeCallbackUri: process.env.SALT_EDGE_CALLBACK_URI ||
+      "https://backend.aniprotech.com/api/accounting/banking/salt-edge/callback",
     shareAccessUrl:
       process.env.SHARE_ACCESS_URL ||
       (production

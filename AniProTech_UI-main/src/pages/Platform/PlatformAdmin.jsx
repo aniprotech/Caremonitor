@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Building2, CheckCircle2, Clock3, ShieldCheck, XCircle } from "lucide-react";
 import { _get, _put } from "../../utils/ApiService";
@@ -11,8 +10,8 @@ const tone = { PENDING:"bg-amber-100 text-amber-800", ACTIVE:"bg-emerald-100 tex
 export default function PlatformAdmin() {
   const user = useAuthStore((state) => state.userData?.user);
   const [filter,setFilter]=useState("PENDING"), [data,setData]=useState({organisations:[],counts:{}}), [loading,setLoading]=useState(true), [busy,setBusy]=useState(""), [notes,setNotes]=useState({});
-  const load=useCallback(async()=>{setLoading(true);try{const response=await _get("/api/platform/organisations",{params:filter?{status:filter}:{}});setData(response.data.results.data);}catch(error){showError(error.response?.data?.message||"Unable to load business applications");}finally{setLoading(false);}}, [filter]);
-  useEffect(()=>{load();},[filter, load]);
+  const load=async()=>{setLoading(true);try{const response=await _get("/api/platform/organisations",{params:filter?{status:filter}:{}});setData(response.data.results.data);}catch(error){showError(error.response?.data?.message||"Unable to load business applications");}finally{setLoading(false);}};
+  useEffect(()=>{load();},[filter]);
   const review=async(id,status)=>{setBusy(id+status);try{await _put(`/api/platform/organisations/${id}/status`,{status,notes:notes[id]||""});showSuccess(`Organisation ${status.toLowerCase()}`);await load();}catch(error){showError(error.response?.data?.message||"Unable to update organisation");}finally{setBusy("");}};
   const counts=useMemo(()=>statuses.map(status=>({status,count:data.counts?.[status]||0})),[data.counts]);
   if(!user?.isPlatformAdmin)return <div className="p-10"><h1 className="text-2xl font-semibold">Platform administrator access required</h1></div>;

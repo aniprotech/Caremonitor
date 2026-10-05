@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import EditSkills from "./EditSkills";
@@ -15,13 +14,13 @@ const SkillsIndex = () => {
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState("");
 
-    const refetch = useCallback(() => {
+    const refetch = () => {
         fetchData(() => _get(APIConfig.TEAMS.TEAM_SKILLS_GET_BY_ID(id)), setData, setLoading, null);
-    }, [id]);
+    };
 
     useEffect(() => {
         refetch(); // Initial fetch
-    }, [id, refetch]);
+    }, [id]);
 
     useScrollToTop();
 

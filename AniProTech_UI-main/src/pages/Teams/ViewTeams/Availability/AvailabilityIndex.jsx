@@ -1,4 +1,3 @@
-import { useCallback, useMemo } from "react";
 import React, { useEffect, useRef, useState } from "react";
 import useScrollToTop from "../../../../hooks/useScrollToTop";
 import AvailabilityHeader from "./AvailabilityHeader";
@@ -27,14 +26,16 @@ const AvailabilityIndex = () => {
     const today = new Date();
     const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 });
     const [startDate, setStartDate] = useState(startOfCurrentWeek);
-    const payload = useMemo(() => ({
+    const endDate = addDays(startDate, 6);
+
+    const payload = {
         startDate: format(startDate, "yyyy-MM-dd"),
-        endDate: format(addDays(startDate, 6), "yyyy-MM-dd"),
-    }), [startDate]);
+        endDate: format(endDate, "yyyy-MM-dd"),
+    };
 
     useScrollToTop();
 
-    const fetchAvailability = useCallback(async () => {
+    const fetchAvailability = async () => {
         setLoadingAvailability(true);
         await fetchData(
             () => _post(APIConfig.TEAMS.TEAM_AVAILABILITY_GET_ALL(id), payload),
@@ -44,9 +45,9 @@ const AvailabilityIndex = () => {
             payload,
             false
         );
-    }, [id, payload]);
+    };
 
-    const fetchBookingAbsence = useCallback(async () => {
+    const fetchBookingAbsence = async () => {
         setLoadingBooking(true);
         await fetchData(
             () => _post(APIConfig.TEAMS.TEAM_AVAILABILITY_BOOKING_GET_ALL(id), payload),
@@ -56,7 +57,7 @@ const AvailabilityIndex = () => {
             payload,
             false
         );
-    }, [id, payload]);
+    };
 
     const prevSearchRef = useRef(location.search);
 
@@ -67,12 +68,12 @@ const AvailabilityIndex = () => {
             fetchAvailability();
         }
         prevSearchRef.current = currentSearch;
-    }, [fetchAvailability, location.search]);
+    }, [location.search]);
 
     useEffect(() => {
         fetchAvailability();
         fetchBookingAbsence();
-    }, [id, payload.startDate, payload.endDate, fetchAvailability, fetchBookingAbsence]);
+    }, [id, payload.startDate, payload.endDate]);
 
     const loading = loadingAvailability || loadingBooking;
     const hasAvailability = availabilityData?.length > 0;

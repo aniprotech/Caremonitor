@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { _get, _post } from "../../utils/ApiService";
-import { Page, Field, ErrorBox } from "../../components/Operations/common";
-import { inputClass, buttonClass, displayTime } from "../../components/Operations/common-utils";
+import { Page, Field, ErrorBox, inputClass, buttonClass, displayTime } from "../../components/Operations/common";
 export default function InboxIndex() {
     const [threads, setThreads] = useState([]),
         [people, setPeople] = useState([]),

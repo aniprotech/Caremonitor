@@ -43,7 +43,7 @@ const AuthIndex = () => {
                 navigate("/login", { replace: true });
             }
         }
-    }, [accessToken, location.state?.from?.pathname, navigate, token]);
+    }, []);
 
     const hasRunRef = useRef(null);
 
@@ -106,7 +106,7 @@ const AuthIndex = () => {
 
             loginFromToken();
         }
-    }, [navigate, setUserData, token]);
+    }, [token]);
 
     const verifyMfa = async (event) => {
         event.preventDefault();

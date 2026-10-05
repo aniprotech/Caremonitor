@@ -84,7 +84,7 @@ const AddMedicationHeader = ({ openInfo, setOpenInfo, medication }) => {
 
                         {/* Disclaimer */}
                         <div className="mt-2 text-sm text-customBlack1">
-                            This information is taken from dm+d and should be cross-referenced with other sources.
+                            Check the medicine name, strength, formulation and directions against the current prescription and dispensing label.
                         </div>
                     </div>
                 )}

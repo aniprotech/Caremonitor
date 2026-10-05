@@ -20,6 +20,7 @@ import { MedicationBodyMap, SkinBodyMap } from "./bodyMap";
 import { AccountingManager, FinanceManager } from "./operations";
 import { OrganisationSettings } from "./organisation";
 import { DateInput, TimeInput } from "./pickers";
+import { ClinicalProfileEditor } from "./clinical";
 import {
   Button,
   Input,
@@ -142,11 +143,14 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     [arrivalMessage,setArrivalMessage]=useState(""),
     [locationExceptionReason,setLocationExceptionReason]=useState(""),
     [qrCode,setQrCode]=useState(""),
+    [qrUnavailable,setQrUnavailable]=useState(false),
+    [qrUnavailableReason,setQrUnavailableReason]=useState(""),
     [scanningQr,setScanningQr]=useState(false),
     [lastLocationAt,setLastLocationAt]=useState<string|null>(null),
     [clock,setClock]=useState(Date.now()),
     [syncSummary,setSyncSummary]=useState<SyncSummary>({pending:0,blocked:0,sent:0,lastSyncAt:null,items:[]});
   const locationSubscription=useRef<Location.LocationSubscription|null>(null);
+  const qrScanHandled=useRef(false);
   const [cameraPermission,requestCameraPermission]=useCameraPermissions();
   const arrivalSubscription=useRef<Location.LocationSubscription|null>(null);
   const arrivalStartVisit=useRef<string|null>(null);
@@ -161,6 +165,8 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     if(!requestedVisitId)return;
     let active=true;
     setQrCode("");
+    setQrUnavailable(false);
+    setQrUnavailableReason("");
     setScanningQr(false);
     setBusy(true);
     void api<Row>(`/api/mobile/visits/${requestedVisitId}`).then(result=>{
@@ -236,7 +242,7 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     setStartTime(visit.startTime);setEndTime(visit.endTime);setVisitTitle(visit.title);setVisitNotes(visit.notes||"");setCreating(true);
   }
   async function openVisit(v: Row) {
-    setSelected(v); setQrCode(""); setScanningQr(false); setBusy(true);
+    setSelected(v); setQrCode(""); setQrUnavailable(false); setQrUnavailableReason(""); qrScanHandled.current=false; setScanningQr(false); setBusy(true);
     try { const sync=await flushPendingMutations(user.id); setSyncSummary(await pendingMutationSummary(user.id)); if(sync.pending) Alert.alert("Offline records need attention",`${sync.pending} visit record${sync.pending===1?"":"s"} could not be synchronised. Review the sync status before completing the visit.`); setDetail(await api(`/api/mobile/visits/${v.id}`)); }
     catch(e) { Alert.alert("Visit could not be opened",(e as Error).message); setSelected(null); }
     finally { setBusy(false); }
@@ -259,8 +265,8 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
   }
   async function attendance(event: "CHECK_IN" | "CHECK_OUT") {
     if (!selected) return;
-    if (event === "CHECK_IN" && detail?.qrCheckInRequired && !qrCode) {
-      Alert.alert("Scan client QR code", "This client's settings require a QR scan before check-in.");
+    if (event === "CHECK_IN" && detail?.qrCheckInRequired && !qrCode && (!qrUnavailable || qrUnavailableReason.trim().length < 10)) {
+      Alert.alert("QR check-in verification", "Scan the client's QR code or explain why it is unavailable (at least 10 characters).");
       return;
     }
     setBusy(true);
@@ -277,12 +283,18 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
         if(user.role==="CAREGIVER"&&p.coords.accuracy!=null)
           await api(`/api/mobile/visits/${selected.id}/proximity`,"POST",coordinates).catch(()=>{});
       }
-      const result=await apiOrQueue(`/api/mobile/visits/${selected.id}/attendance`,{clientEventId:clientEventId(),event,...coordinates,...(event==="CHECK_IN"&&qrCode?{qrCode}:{}),locationExceptionReason:event==="CHECK_IN"?locationExceptionReason.trim():""},user.id,event==="CHECK_IN"?"Visit check-in":"Visit check-out");
+      const attendancePath=`/api/mobile/visits/${selected.id}/attendance`;
+      const qrException=event==="CHECK_IN"&&!!detail?.qrCheckInRequired&&qrUnavailable&&!qrCode;
+      const attendanceBody={clientEventId:clientEventId(),event,...coordinates,...(event==="CHECK_IN"&&qrCode?{qrCode}:{}),qrUnavailableReason:qrException?qrUnavailableReason.trim():"",locationExceptionReason:event==="CHECK_IN"?locationExceptionReason.trim():""};
+      // A QR exception must reach the office immediately, so do not queue it offline.
+      const result=qrException?{data:await api<Row>(attendancePath,"POST",attendanceBody),queued:false}:await apiOrQueue(attendancePath,attendanceBody,user.id,event==="CHECK_IN"?"Visit check-in":"Visit check-out");
       if(result.queued){setSyncSummary(await pendingMutationSummary(user.id));const status=event==="CHECK_IN"?"IN_PROGRESS":"COMPLETED";setDetail((current)=>current?{...current,visit:{...current.visit,status}}:current);setSelected({...selected,status});Alert.alert("Attendance saved securely",`${event==="CHECK_IN"?"Check-in":"Check-out"} is pending synchronisation. Keep the app installed and review sync status when connectivity returns.`);}
-      else {const attendanceResult=result.data as Row;if(event==="CHECK_IN") Alert.alert("Check-in recorded",attendanceResult.locationStatus==="VERIFIED"?`Client location verified${attendanceResult.distanceMetres!=null?` (${attendanceResult.distanceMetres} m)`:""}. The arrival record has been saved.`:attendanceResult.locationStatus==="OUTSIDE_RADIUS"?`You appear to be ${attendanceResult.distanceMetres} m from the configured client location. An exception alert has been sent to the admin for review.`:"Attendance was recorded, but this client's address needs map coordinates. An admin setup alert has been created; this is not recorded as a caregiver location failure.");const updated=await api<Row>(`/api/mobile/visits/${selected.id}`);setDetail(updated);setSelected({...selected,status:updated.visit.status});}
+      else {const attendanceResult=result.data as Row;if(event==="CHECK_IN") Alert.alert("Check-in recorded",attendanceResult.qrException?"The visit has started without QR verification. Your explanation and location were recorded, and the office has been alerted for review.":attendanceResult.locationStatus==="VERIFIED"?`Client location verified${attendanceResult.distanceMetres!=null?` (${attendanceResult.distanceMetres} m)`:""}. The arrival record has been saved.`:attendanceResult.locationStatus==="OUTSIDE_RADIUS"?`You appear to be ${attendanceResult.distanceMetres} m from the configured client location. An exception alert has been sent to the admin for review.`:"Attendance was recorded, but this client's address needs map coordinates. An admin setup alert has been created; this is not recorded as a caregiver location failure.");const updated=await api<Row>(`/api/mobile/visits/${selected.id}`);setDetail(updated);setSelected({...selected,status:updated.visit.status});}
       if(event==="CHECK_IN"){
         setLocationExceptionReason("");
         setQrCode("");
+        setQrUnavailable(false);
+        setQrUnavailableReason("");
         try{await startLocationTracking(selected.id)}catch(error){Alert.alert("Check-in saved; tracking paused",(error as Error).message)}
       }else await stopLocationTracking();
       refresh();
@@ -291,6 +303,18 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     } finally {
       setBusy(false);
     }
+  }
+  function handleQrScan(data:string) {
+    if(qrScanHandled.current)return;
+    qrScanHandled.current=true;
+    setScanningQr(false);
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data)) {
+      Alert.alert("Wrong QR code","That is not a Caremonitor client QR code. Tap Scan client QR code to try again.");
+      return;
+    }
+    setQrCode(data);
+    setQrUnavailable(false);
+    setQrUnavailableReason("");
   }
   async function record(kind:string,title:string,body:string,status:string,category="",clinical?:{type:string;value:string}) {
     if(!selected) return; setBusy(true);
@@ -419,6 +443,8 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
             {!!detail?.clientInformation?.otherPreferences&&<Text style={styles.text}>Other preferences: {detail.clientInformation.otherPreferences}</Text>}
             {!!detail?.clientInformation?.communicationOrInformationNeeds&&<Text style={styles.text}>Communication needs: {detail.clientInformation.communicationOrInformationNeeds}</Text>}
             {!!detail?.clientInformation?.allergiesIntolerances&&<Text style={styles.error}>Allergies and intolerances: {detail.clientInformation.allergiesIntolerances}</Text>}
+            {!!detail?.clientInformation?.hospitalName&&<Text style={styles.text}>Hospital: {detail.clientInformation.hospitalName}</Text>}
+            {!!detail?.clientInformation?.medicalHistory?.length&&<Text style={styles.text}>Medical history: {detail.clientInformation.medicalHistory.join(", ")}</Text>}
             {!!detail?.clientInformation?.overallRiskLevel&&<Text style={styles.error}>Overall risk: {detail.clientInformation.overallRiskLevel}</Text>}
             {!!detail?.clientInformation?.riskLevelDetails&&<Text style={styles.text}>Risk details: {detail.clientInformation.riskLevelDetails}</Text>}
             {detail?.keyContacts?.map((contact:Row,index:number)=><Text key={`${contact.name}-${index}`} style={styles.text}>{contact.type||"Contact"}: {contact.name}{contact.relationship?` (${contact.relationship})`:""}{contact.phone?` · ${contact.phone}`:""}</Text>)}
@@ -499,9 +525,16 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
           <Text style={styles.heading}>Visit controls</Text>
           {Platform.OS === "web" && <Text style={styles.muted}>Browser preview: check-in, location, QR, camera, dictation and offline care recording require the installed Android or iOS app.</Text>}
           {detail?.visit?.status === "SCHEDULED" && <Card>
-            {detail.qrCheckInRequired&&<><Text style={styles.heading}>Client QR verification required</Text><Text style={styles.muted}>{qrCode?"Client QR code scanned. Check in when ready.":"Scan the current QR code displayed at the client's location."}</Text><Button disabled={Platform.OS === "web"} title={scanningQr?"Close QR scanner":"Scan client QR code"} variant="secondary" onPress={async()=>{if(scanningQr){setScanningQr(false);return}const permission=cameraPermission?.granted?cameraPermission:await requestCameraPermission();if(!permission.granted){Alert.alert("Camera permission needed","Allow camera access to scan the client's check-in QR code.");return}setScanningQr(true)}}/>{scanningQr&&<CameraView style={{height:260,borderRadius:12,overflow:"hidden"}} facing="back" barcodeScannerSettings={{barcodeTypes:["qr"]}} onBarcodeScanned={({data})=>{if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data)){Alert.alert("Wrong QR code","Scan the client's Caremonitor QR code.");return}setQrCode(data);setScanningQr(false)}}/>}</>}
+            {detail.qrCheckInRequired&&<>
+              <Text style={styles.heading}>Client QR verification required</Text>
+              <Text style={styles.muted}>{qrCode?"Client QR code scanned. Check in when ready.":"Scan the current QR code displayed at the client's location. If it is unavailable, explain why so the office can review the check-in."}</Text>
+              {!qrUnavailable&&<Button disabled={Platform.OS === "web"} title={scanningQr?"Close QR scanner":"Scan client QR code"} variant="secondary" onPress={async()=>{if(scanningQr){qrScanHandled.current=true;setScanningQr(false);return}const permission=cameraPermission?.granted?cameraPermission:await requestCameraPermission();if(!permission.granted){Alert.alert("Camera permission needed","Allow camera access to scan the client's check-in QR code.");return}qrScanHandled.current=false;setScanningQr(true)}}/>}
+              {scanningQr&&!qrUnavailable&&<CameraView style={{height:260,borderRadius:12,overflow:"hidden"}} facing="back" barcodeScannerSettings={{barcodeTypes:["qr"]}} onBarcodeScanned={({data})=>handleQrScan(data)}/>}
+              {!qrCode&&<Button title={qrUnavailable?"Use QR scanner instead":"QR code unavailable"} variant="secondary" selected={qrUnavailable} onPress={()=>{setQrUnavailable(value=>!value);setQrUnavailableReason("");setScanningQr(false)}}/>}
+              {qrUnavailable&&!qrCode&&<><Input label="Why is the client's QR code unavailable?" value={qrUnavailableReason} onChangeText={setQrUnavailableReason} multiline maxLength={500}/><Text style={styles.muted}>Enter at least 10 characters. Your location and explanation will be recorded and the office alerted. This requires a connection.</Text></>}
+            </>}
             <Input label="If checking in away from the client address, explain why (optional)" value={locationExceptionReason} onChangeText={setLocationExceptionReason} multiline maxLength={500}/>
-            <Button disabled={Platform.OS === "web"||busy||(!!detail.qrCheckInRequired&&!qrCode)} title="Check in" onPress={() => void attendance("CHECK_IN")}/>
+            <Button disabled={Platform.OS === "web"||busy||(!!detail.qrCheckInRequired&&!qrCode&&(!qrUnavailable||qrUnavailableReason.trim().length<10))} title="Check in" onPress={() => void attendance("CHECK_IN")}/>
             {user.role==="CAREGIVER"&&<><Text style={styles.muted}>To notify administrators when you reach 100 metres of this client, keep Caremonitor open and allow precise location.</Text><Button disabled={Platform.OS === "web"} title={arrivalWatching?"Stop arrival alerts":"Enable arrival alerts"} variant="secondary" onPress={()=>arrivalWatching?stopArrivalWatching():void startArrivalWatching(selected.id).catch(e=>Alert.alert("Arrival alerts unavailable",(e as Error).message))}/>{!!arrivalMessage&&<Text style={styles.muted}>{arrivalMessage}</Text>}</>}
           </Card>}
           {detail?.visit?.status === "IN_PROGRESS" && <Card>
@@ -560,6 +593,7 @@ export function People({ kind,user,onOpenVisit }: { kind: "clients" | "team"; us
     [lastName,setLastName]=useState(""),
     [personEmail,setPersonEmail]=useState(""),
     [phone,setPhone]=useState(""),
+    [dateOfBirth,setDateOfBirth]=useState(""),
     [role,setRole]=useState("CAREGIVER");
   const path =
     kind === "clients"
@@ -632,6 +666,7 @@ export function People({ kind,user,onOpenVisit }: { kind: "clients" | "team"; us
     setLastName(person?.lastName||"");
     setPersonEmail(person?.email||"");
     setPhone(person?.primaryPhone||"");
+    setDateOfBirth(person?.dateOfBirth||"");
     setRole(person?.role==="ADMIN"?"ADMIN":"CAREGIVER");
     setPersonError("");
     setEditing(true);
@@ -640,7 +675,7 @@ export function People({ kind,user,onOpenVisit }: { kind: "clients" | "team"; us
     if(!firstName.trim()||!lastName.trim()||!personEmail.trim())return;
     setPersonBusy(true);setPersonError("");
     try{
-      const payload={firstName:firstName.trim(),lastName:lastName.trim(),email:personEmail.trim().toLowerCase(),primaryPhone:phone.trim(),...(kind==="team"?{role}:{})};
+      const payload={firstName:firstName.trim(),lastName:lastName.trim(),email:personEmail.trim().toLowerCase(),primaryPhone:phone.trim(),...(kind==="team"?{role}:{dateOfBirth:dateOfBirth||null})};
       const saved=kind==="clients"
         ? await api<Row>("/api/client/create","POST",{...payload,...(selected?{id:selected.id}:{})})
         : await api<Row>(selected?`/api/team/update-user/${selected.id}`:"/api/team/create-user",selected?"PUT":"POST",payload);
@@ -688,6 +723,7 @@ export function People({ kind,user,onOpenVisit }: { kind: "clients" | "team"; us
         <Input label="Last name" value={lastName} onChangeText={setLastName} maxLength={120}/>
         <Input label="Email" value={personEmail} onChangeText={setPersonEmail} keyboardType="email-address" autoCapitalize="none" maxLength={254}/>
         <Input label="Phone (optional)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={25}/>
+        {kind==="clients"&&<DateInput label="Date of birth" value={dateOfBirth} onChangeText={setDateOfBirth} optional/>}
         {kind==="team"&&<View style={styles.row}>
           <Button title="Caregiver" variant="secondary" selected={role==="CAREGIVER"} onPress={()=>setRole("CAREGIVER")}/>
           <Button title="Admin" variant="secondary" selected={role==="ADMIN"} onPress={()=>setRole("ADMIN")}/>
@@ -747,6 +783,16 @@ export function People({ kind,user,onOpenVisit }: { kind: "clients" | "team"; us
             ["Caregiver preferences",clientInformation.carerPreferences],
             ["Other preferences",clientInformation.otherPreferences],
             ["Medical support",clientInformation.medicalSupport],
+            ["Hospital",clientInformation.hospitalName],
+            ["Medical history",Array.isArray(clientInformation.medicalHistory)?clientInformation.medicalHistory.join(", "):clientInformation.medicalHistory],
+            ["GP practice",clientInformation.gpPracticeName],
+            ["GP practice identifier",clientInformation.gpPracticeIdentifier],
+            ["GP",clientInformation.gpName],
+            ["GP phone",clientInformation.gpPhoneNumber],
+            ["Pharmacy",clientInformation.pharmacyName],
+            ["Pharmacy phone",clientInformation.pharmacyPhoneNumber],
+            ["Pharmacy address",clientInformation.pharmacyAddress],
+            ["Pharmacy postcode",clientInformation.pharmacyPostCode],
           ].filter(([,value])=>!!value).map(([label,value])=><Text key={label} style={label.includes("risk")||label.includes("Allergies")?styles.error:styles.text}>{label}: {String(value)}</Text>)}
           {careOverview.map(section=><View key={section.key}>
             <Text style={styles.heading}>{section.title}</Text>
@@ -758,6 +804,7 @@ export function People({ kind,user,onOpenVisit }: { kind: "clients" | "team"; us
           </View>)}
           {!careOverview.length&&<Text style={styles.muted}>No care plan summary is available.</Text>}
         </Card>}
+        {kind==="clients"&&user.role!=="CAREGIVER"&&<ClinicalProfileEditor clientId={selected.id} info={clientInformation} onSaved={()=>void open(selected.id)}/>}
         {kind==="clients"&&user.role!=="CAREGIVER"&&<CarePlanManager clientId={selected.id} onSaved={()=>void open(selected.id)}/>}
         {kind==="clients"&&user.role!=="CAREGIVER"&&<TaskPlanManager clientId={selected.id} onSaved={()=>void open(selected.id)}/>}
         {kind==="clients"&&user.role!=="CAREGIVER"&&<PrnLimitsManager medications={medications} onSaved={()=>void open(selected.id)}/>}
@@ -1049,6 +1096,7 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
     [data, setData] = useState<any>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [securityBusy, setSecurityBusy] = useState(false),
     [leaveStart,setLeaveStart]=useState(""),
     [leaveEnd,setLeaveEnd]=useState(""),
     [leaveReason,setLeaveReason]=useState(""),
@@ -1203,7 +1251,7 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
       {section === "Notifications" && <><Text style={styles.muted}>Open alerts available to your role. Refresh by reopening this section; urgent matters still require your organisation's escalation process.</Text>{busy&&<Text style={styles.muted}>Loading...</Text>}{data?.items?.map((item:Row)=><Card key={item.id}><Text style={styles.badge}>{item.severity} · {item.state}</Text><Text style={styles.heading}>{item.title}</Text><Text style={styles.text}>{item.clientName}</Text><Text style={styles.muted}>{timestamp(item.createdAt)}</Text></Card>)}{data?.items?.length===0&&<Empty text="No open care alerts are assigned to you."/>}</>}
       {!section && <Card><Text style={styles.heading}>Profile</Text><Text style={styles.text}>{user.firstName} {user.lastName}</Text><Text style={styles.muted}>{user.email} · {user.role}</Text><Text style={styles.muted}>App version {Constants.expoConfig?.version || "unavailable"}</Text><Text style={styles.muted}>{Platform.OS === "web" ? "Browser preview: phone-only security and offline features must be checked in the installed app." : "Your session is stored in the device's secure storage. Contact your administrator to change your email or assigned client access."}</Text>
         {editingProfile?<><Input label="First name" value={profileFirst} onChangeText={setProfileFirst}/><Input label="Last name" value={profileLast} onChangeText={setProfileLast}/><Input label="Phone (optional)" value={profilePhone} onChangeText={setProfilePhone} keyboardType="phone-pad"/><Button disabled={busy||profileFirst.trim().length<2||profileLast.trim().length<2} title="Save profile" onPress={()=>void saveProfile()}/><Button variant="secondary" title="Cancel" onPress={()=>setEditingProfile(false)}/></>:<Button variant="secondary" title="Edit my profile" onPress={()=>setEditingProfile(true)}/>}
-        {Platform.OS !== "web" && <Button variant="secondary" title={deviceLock?"Turn off device authentication":"Require device authentication on app return"} onPress={()=>void changeDeviceLock(!deviceLock).catch(e=>Alert.alert("Security setting unchanged",(e as Error).message))}/>}
+        {Platform.OS !== "web" && <Button variant="secondary" disabled={securityBusy} title={securityBusy?"Confirming security setting…":deviceLock?"Turn off device authentication":"Require device authentication on app return"} onPress={()=>{if(securityBusy)return;setSecurityBusy(true);void changeDeviceLock(!deviceLock).catch(e=>Alert.alert("Security setting unchanged",(e as Error).message)).finally(()=>setSecurityBusy(false));}}/>}
       </Card>}
       {user.role === "CAREGIVER" && <>
         {section==="Availability"&&<>

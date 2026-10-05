@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Upload } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -23,16 +22,16 @@ const UploadDocuments = () => {
 
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+  }, []);
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = async () => {
     try {
       const res = await _get(APIConfig.CLIENT_CARE_PLAN_FILES.GET_ALL(clientId));
       setDocuments(res?.data?.results?.data || []);
     } catch (error) {
       showError(error?.response?.data?.message || 'Failed to fetch documents');
     }
-  }, [clientId]);
+  };
 
   const handleFiles = async (files) => {
     for (const file of files) {

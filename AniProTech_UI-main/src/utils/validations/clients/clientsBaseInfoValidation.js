@@ -2,8 +2,8 @@ import * as Yup from 'yup';
 
 const clientsBaseInfoValidation = Yup.object({
     personalIdentity: Yup.object({
-        ethnicity: Yup.string().required('Ethnicity is required'),
-        religion: Yup.string().required('Religion is required'),
+        ethnicity: Yup.string().nullable(),
+        religion: Yup.string().nullable(),
         cultureImpact: Yup.string(),
         sex: Yup.string(),
         gender: Yup.string(),

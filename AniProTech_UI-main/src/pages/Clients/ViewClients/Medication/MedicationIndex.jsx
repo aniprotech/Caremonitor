@@ -1,10 +1,9 @@
 import { ChevronRight, ClipboardList, ClipboardCheck, ClipboardPlus, Book } from "lucide-react";
 import { useNavigationHelpers } from "../../../../hooks/useNavigationHelpers";
 import useScrollToTop from "../../../../hooks/useScrollToTop";
-import SearchDropdown from "../../../../components/SearchDropdown/SearchDropdown";
 import { useEffect, useState } from "react";
+import ClinicalAutocomplete from "../../../../components/ClinicalAutocomplete/ClinicalAutocomplete";
 import MedicationPersonalDetails from "./MedicationPersonalDetails";
-import { STATIC_ADDITIONAL_INFO_LIST } from "../../../../constants/clientMedication";
 import { _get } from "../../../../utils/ApiService";
 import APIConfig from "../../../../utils/ApiConfig";
 import DotLoader from "../../../../components/Loader/DotLoader";
@@ -21,21 +20,7 @@ const MedicationIndex = () => {
     useScrollToTop();
 
     const [data, setData] = useState([]);
-    const [query, setQuery] = useState("");
-    const [searchResults, setSearchResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    useEffect(() => {
-        // Simulate search on static data
-        if (!query) {
-            setSearchResults([]);
-            return;
-        }
-
-        const searchText = query.toLowerCase();
-        const filtered = STATIC_ADDITIONAL_INFO_LIST?.filter((category) => category.description.toLowerCase().includes(searchText));
-        setSearchResults(filtered);
-    }, [query]);
-
 
     useEffect(() => {
         const fetchExistingData = async () => {
@@ -54,32 +39,8 @@ const MedicationIndex = () => {
         fetchExistingData();
     }, [id, isPersonalDetails ]);
 
-    const highlightMatch = (text, searchQuery) => {
-        if (!searchQuery) return text;
-        const parts = text.split(new RegExp(`(${searchQuery})`, "gi"));
-        return parts.map((part, index) =>
-            part.toLowerCase() === searchQuery.toLowerCase() ? (
-                <span
-                    key={index}
-                    className="font-semibold text-customBlue"
-                >
-                    {part}
-                </span>
-            ) : (
-                <span key={index}>{part}</span>
-            ),
-        );
-    };
-
-    const renderOption = (category) => (
-        <div className="flex flex-col gap-1">
-            <span className="font-medium">{highlightMatch(category.description, query)}</span>
-            {/* <span className="text-sm text-gray-500">{highlightMatch(category.description, query)}</span> */}
-        </div>
-    );
-
-    const handleCategorySelect = (category) => {
-        navigate(`/admin/clients/${id}/medication/schedule/add`, { state: { medication: category } });
+    const handleCategorySelect = (name) => {
+        navigate(`/admin/clients/${id}/medication/schedule/add`, { state: { medication: { name, description: name } } });
     };
 
     if(isLoading){
@@ -112,20 +73,9 @@ const MedicationIndex = () => {
             {/* Add Medication Search */}
             <div className="mb-6 rounded-md border border-gray-300 bg-white p-3 md:p-4 xl:p-8">
                 <h2 className="poppins-medium mb-2 text-lg text-customBlack">Add medication</h2>
-                <p className="text-sm text-customGrey1">
-                    Search the NHS <span className="cursor-pointer text-[#0459B4]">medicines database</span> (dm+d) below.
-                </p>
+                <p className="text-sm text-customGrey1">Search medicine names or add one from the prescription. NHS dm+d results appear when the terminology connection is configured. Confirm the exact product, strength and directions against the dispensing label before scheduling.</p>
                 <div className="mt-4">
-                    <SearchDropdown
-                        options={searchResults}
-                        loading={false}
-                        query={query}
-                        onQueryChange={setQuery}
-                        onOptionSelect={handleCategorySelect}
-                        placeholder="eg : Paracetamol"
-                        renderOption={renderOption}
-                        showSupportText={false}
-                    />
+                    <ClinicalAutocomplete kind="medicine" label="Medicine name" value="" onChange={handleCategorySelect}/>
                 </div>
             </div>
 

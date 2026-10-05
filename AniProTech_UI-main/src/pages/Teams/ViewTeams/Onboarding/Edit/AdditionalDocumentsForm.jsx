@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import TextField from "../../../../../components/TextInput/TextInput";
 import DropdownField from "../../../../../components/DropdownInput/Dropdown";
 import { onBoardingDocumentCategoryOptions } from "../../../../../data/teams";
@@ -58,13 +58,13 @@ const AdditionalDocumentsForm = ({
     };
 
     // Combined list with source tags
-    const combinedDocs = useMemo(() => [
+    const combinedDocs = [
         ...apiDocumentList.map((doc, index) => ({ ...doc, __index: index, __source: "api" })),
         ...uploadedList.map((doc, index) => ({ ...doc, __index: index, __source: "uploaded" })),
-    ], [apiDocumentList, uploadedList]);
+    ];
     useEffect(() => {
         setFinalDocuments(combinedDocs);
-    }, [apiDocumentList, combinedDocs, deletedDocumentIds, setFinalDocuments, uploadedList]);
+    }, [apiDocumentList, deletedDocumentIds, uploadedList]);
     return (
         <>
             <h2 className="poppins-medium text-base text-customTextColor md:text-xl">Additional documents</h2>

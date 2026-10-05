@@ -59,7 +59,16 @@ export function registerFinance({ db, repo, auth }, route) {
       currency: "GBP",
     };
   }
-  const docSelect = `SELECT id,kind,number,recipient_id AS "recipientId",recipient_name AS "recipientName",from_date::text AS "from",to_date::text AS "to",total_pence AS "totalPence",status,created_at AS "createdAt" FROM node_finance_documents`;
+  const docSelect = `SELECT id,kind,number,recipient_id AS "recipientId",recipient_name AS "recipientName",from_date::text AS "from",to_date::text AS "to",total_pence AS "totalPence",status,created_at AS "createdAt",
+    (COALESCE((SELECT sum(p.amount_pence) FROM node_invoice_payments p
+      WHERE p.invoice_id=node_finance_documents.id AND p.agency_id=node_finance_documents.agency_id
+      AND p.reversed_at IS NULL),0)+COALESCE((SELECT sum(m.amount_pence) FROM node_manual_invoice_payments m
+      WHERE m.invoice_id=node_finance_documents.id AND m.agency_id=node_finance_documents.agency_id
+      AND m.reversed_at IS NULL),0))::bigint AS "paidPence",
+    COALESCE((SELECT sum(c.total_pence) FROM node_credit_notes c
+      WHERE c.invoice_id=node_finance_documents.id AND c.agency_id=node_finance_documents.agency_id
+      AND c.status='APPLIED'),0)::bigint AS "creditedPence"
+    FROM node_finance_documents`;
   async function reconciliation(req,id){const d=(await db.query("SELECT * FROM node_finance_documents WHERE id=$1 AND agency_id=$2",[id,req.user.agencyId])).rows[0];if(!d)fail(404,"Document not found");const lines=(await db.query(`SELECT l.id,l.amount_pence,l.component,l.visit_revision,l.review_revision,l.travel_revision,v.revision current_visit_revision,r.revision current_review_revision,t.revision current_travel_revision
     FROM node_finance_lines l JOIN node_roster_visits v ON v.id=l.visit_id LEFT JOIN node_finance_reviews r ON r.visit_id=v.id AND r.kind=CASE WHEN l.kind='INVOICE' THEN 'BILLING' ELSE 'PAY' END LEFT JOIN node_visit_travel t ON t.visit_id=v.id WHERE l.document_id=$1`,[id])).rows;const lineTotal=lines.reduce((sum,l)=>sum+Number(l.amount_pence),0),sourcesMatch=lines.every(l=>Number(l.visit_revision)===Number(l.current_visit_revision)&&Number(l.review_revision)===Number(l.current_review_revision)&&(!['MILEAGE','TRAVEL_TIME'].includes(l.component)||Number(l.travel_revision)===Number(l.current_travel_revision)));return {documentId:id,documentTotalPence:Number(d.total_pence),lineTotalPence:lineTotal,totalMatches:Number(d.total_pence)===lineTotal,sourcesMatch,balanced:Number(d.total_pence)===lineTotal&&sourcesMatch,lineCount:lines.length};}
   route("GET", "/api/finance/options", async (req, res) => {
@@ -240,6 +249,16 @@ export function registerFinance({ db, repo, auth }, route) {
     };
     if (!allowed[d.status]?.includes(next))
       fail(400, "This status change is not allowed");
+    if (d.kind === "INVOICE" && next === "PAID")
+      fail(409, "Confirm a bank match or record an evidenced manual payment in Accounting before marking an invoice paid");
+    if (d.kind === "INVOICE" && next === "VOID") {
+      const matched = (await db.query(`SELECT id FROM node_invoice_payments
+        WHERE agency_id=$1 AND invoice_id=$2 AND reversed_at IS NULL
+        UNION ALL SELECT id FROM node_manual_invoice_payments
+        WHERE agency_id=$1 AND invoice_id=$2 AND reversed_at IS NULL LIMIT 1`,
+      [req.user.agencyId, d.id])).rows[0];
+      if (matched) fail(409, "Reverse recorded payments before voiding this invoice");
+    }
     if(next===approved){const check=await reconciliation(req,d.id);if(!check.balanced)fail(409,"Document no longer reconciles to its confirmed visit revisions. Void it and create a new draft.");}
     await db.query(
       "UPDATE node_finance_documents SET status=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",
@@ -260,5 +279,38 @@ export function registerFinance({ db, repo, auth }, route) {
   route("POST","/api/finance/credit-notes",async(req,res)=>{auth.admin(req);const p=z.object({invoiceId:z.uuid(),reason:z.string().trim().min(5).max(1000),lines:z.array(z.object({financeLineId:z.uuid(),amountPence:z.number().int().positive()})).min(1).max(500)}).safeParse(req.body);if(!p.success)fail(400,"Enter an invoice, reason and valid credit lines");const b=p.data;const result=await db.transaction(async()=>{await lock(req);const invoice=(await db.query("SELECT * FROM node_finance_documents WHERE id=$1 AND agency_id=$2 AND kind='INVOICE' FOR UPDATE",[b.invoiceId,req.user.agencyId])).rows[0];if(!invoice||!['ISSUED','PAID'].includes(invoice.status))fail(400,"Choose an issued or paid invoice");const ids=b.lines.map(x=>x.financeLineId);if(new Set(ids).size!==ids.length)fail(400,"Choose each invoice line once");const source=(await db.query("SELECT * FROM node_finance_lines WHERE document_id=$1 AND id=ANY($2::uuid[])",[invoice.id,ids])).rows;if(source.length!==ids.length)fail(400,"A credit line does not belong to this invoice");const already=(await db.query("SELECT COALESCE(sum(total_pence),0)::int total FROM node_credit_notes WHERE invoice_id=$1 AND status<>'VOID'",[invoice.id])).rows[0].total,creditedByLine=(await db.query(`SELECT l.finance_line_id,sum(l.amount_pence)::int total FROM node_credit_note_lines l JOIN node_credit_notes c ON c.id=l.credit_note_id WHERE c.invoice_id=$1 AND c.status<>'VOID' GROUP BY l.finance_line_id`,[invoice.id])).rows;let total=0;for(const line of b.lines){const original=source.find(x=>x.id===line.financeLineId),lineAlready=Number(creditedByLine.find(x=>x.finance_line_id===line.financeLineId)?.total||0);if(lineAlready+line.amountPence>Number(original.amount_pence))fail(409,"Credits cannot exceed an original invoice line");total+=line.amountPence;}if(Number(already)+total>Number(invoice.total_pence))fail(409,"Credits cannot exceed the invoice total");const number=(await db.query("SELECT COALESCE(max(number),0)+1 next FROM node_credit_notes WHERE agency_id=$1",[req.user.agencyId])).rows[0].next,id=randomUUID();await db.query("INSERT INTO node_credit_notes(id,agency_id,invoice_id,number,reason,total_pence,created_by) VALUES($1,$2,$3,$4,$5,$6,$7)",[id,req.user.agencyId,invoice.id,number,b.reason,total,req.user.id]);for(const line of b.lines){const original=source.find(x=>x.id===line.financeLineId);await db.query("INSERT INTO node_credit_note_lines(id,credit_note_id,finance_line_id,description,amount_pence) VALUES($1,$2,$3,$4,$5)",[randomUUID(),id,original.id,original.title,line.amountPence]);}await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'CREDIT_NOTE_CREATED',$5)",[randomUUID(),req.user.agencyId,req.user.id,id,JSON.stringify({invoiceId:invoice.id,totalPence:total,reason:b.reason})]);return id});return reply(res,{id:result},"Credit note draft created",201)});
   route("GET","/api/finance/credit-notes",async(req,res)=>{auth.admin(req);return reply(res,(await db.query(`SELECT c.id,c.number,c.invoice_id AS "invoiceId",d.number AS "invoiceNumber",c.reason,c.total_pence AS "totalPence",c.status,c.created_at AS "createdAt" FROM node_credit_notes c JOIN node_finance_documents d ON d.id=c.invoice_id WHERE c.agency_id=$1 ORDER BY c.number DESC`,[req.user.agencyId])).rows)});
   route("GET","/api/finance/credit-notes/:id",async(req,res)=>{auth.admin(req);const c=(await db.query(`SELECT c.id,c.number,c.invoice_id AS "invoiceId",d.number AS "invoiceNumber",c.reason,c.total_pence AS "totalPence",c.status,c.created_at AS "createdAt" FROM node_credit_notes c JOIN node_finance_documents d ON d.id=c.invoice_id WHERE c.id=$1 AND c.agency_id=$2`,[req.params.id,req.user.agencyId])).rows[0];if(!c)fail(404,"Credit note not found");c.lines=(await db.query('SELECT finance_line_id AS "financeLineId",description,amount_pence AS "amountPence" FROM node_credit_note_lines WHERE credit_note_id=$1 ORDER BY id',[c.id])).rows;return reply(res,c)});
-  route("POST","/api/finance/credit-notes/:id/status",async(req,res)=>{auth.admin(req);await lock(req);const c=(await db.query("SELECT * FROM node_credit_notes WHERE id=$1 AND agency_id=$2 FOR UPDATE",[req.params.id,req.user.agencyId])).rows[0];if(!c)fail(404,"Credit note not found");if(req.body.expectedStatus!==c.status)fail(409,"This credit note changed. Refresh before updating");const allowed={DRAFT:['ISSUED','VOID'],ISSUED:['APPLIED','VOID'],APPLIED:[],VOID:[]};if(!allowed[c.status]?.includes(req.body.status))fail(400,"This status change is not allowed");await db.query("UPDATE node_credit_notes SET status=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[c.id,req.body.status]);await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'CREDIT_NOTE_STATUS_CHANGED',$5)",[randomUUID(),req.user.agencyId,req.user.id,c.id,JSON.stringify({before:c.status,after:req.body.status})]);return reply(res,{},"Credit note updated")});
+  route("POST", "/api/finance/credit-notes/:id/status", async (req, res) => {
+    auth.admin(req);
+    await db.transaction(async () => {
+      const note = (await db.query("SELECT invoice_id FROM node_credit_notes WHERE id=$1 AND agency_id=$2",
+        [req.params.id, req.user.agencyId])).rows[0];
+      if (!note) fail(404, "Credit note not found");
+      const invoice = (await db.query("SELECT id,total_pence,status FROM node_finance_documents WHERE id=$1 AND agency_id=$2 FOR UPDATE",
+        [note.invoice_id, req.user.agencyId])).rows[0];
+      if (!invoice || invoice.status === "VOID") fail(409, "Invoice is unavailable");
+      const c = (await db.query("SELECT * FROM node_credit_notes WHERE id=$1 AND agency_id=$2 FOR UPDATE",
+        [req.params.id, req.user.agencyId])).rows[0];
+      if (req.body.expectedStatus !== c.status) fail(409, "This credit note changed. Refresh before updating");
+      const allowed = { DRAFT: ["ISSUED", "VOID"], ISSUED: ["APPLIED", "VOID"], APPLIED: [], VOID: [] };
+      if (!allowed[c.status]?.includes(req.body.status)) fail(400, "This status change is not allowed");
+      await db.query("UPDATE node_credit_notes SET status=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",
+        [c.id, req.body.status]);
+      if (req.body.status === "APPLIED" && invoice.status === "ISSUED") {
+        const balance = (await db.query(`SELECT
+          (COALESCE((SELECT sum(amount_pence) FROM node_invoice_payments WHERE agency_id=$1
+            AND invoice_id=$2 AND reversed_at IS NULL),0)+
+          COALESCE((SELECT sum(amount_pence) FROM node_manual_invoice_payments WHERE agency_id=$1
+            AND invoice_id=$2 AND reversed_at IS NULL),0))::bigint AS paid,
+          COALESCE((SELECT sum(total_pence) FROM node_credit_notes WHERE agency_id=$1
+            AND invoice_id=$2 AND status='APPLIED'),0)::bigint AS credited`,
+        [req.user.agencyId, invoice.id])).rows[0];
+        if (Number(balance.paid) > 0 && Number(balance.paid) + Number(balance.credited) >= Number(invoice.total_pence))
+          await db.query("UPDATE node_finance_documents SET status='PAID',updated_at=CURRENT_TIMESTAMP WHERE id=$1", [invoice.id]);
+      }
+      await db.query(`INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot)
+        VALUES($1,$2,$3,$4,'CREDIT_NOTE_STATUS_CHANGED',$5)`,
+      [randomUUID(), req.user.agencyId, req.user.id, c.id, JSON.stringify({ before: c.status, after: req.body.status })]);
+    });
+    return reply(res, {}, "Credit note updated");
+  });
 }

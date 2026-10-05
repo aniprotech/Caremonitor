@@ -28,7 +28,7 @@ const StopScheduleDialog = ({ scheduleId, onClose }) => {
             }
         }
         return times;
-    }, [currentHour, selectedDate]);
+    }, [selectedDate]);
 
     const handleSubmit = async () => {
         const url = APIConfig.CLIENT_MEDICATION_SCHEDULING.STOP_SCHEDULING(scheduleId);

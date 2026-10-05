@@ -1,0 +1,1716 @@
+{
+  "source": "scotland-hospitals",
+  "release": "retrieved-2026-10-05",
+  "sourceUrl": "https://www.opendata.nhs.scot/api/3/action/datastore_search",
+  "retrievedAt": "2026-10-05T07:36:39.945644+00:00",
+  "records": [
+    {
+      "code": "A101H",
+      "name": "Arran War Memorial Hospital",
+      "postcode": "KA278LF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A103H",
+      "name": "Ayrshire Central Hospital",
+      "postcode": "KA128SS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A110H",
+      "name": "Lady Margaret Hospital",
+      "postcode": "KA280HF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A111H",
+      "name": "University Hospital Crosshouse",
+      "postcode": "KA2 0BE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A114H",
+      "name": "Warrix Avenue Mental Health Community Rehabilitation Unit",
+      "postcode": "KA120DP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A201H",
+      "name": "Ailsa Hospital",
+      "postcode": "KA6 6AB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A208H",
+      "name": "Biggart Hospital",
+      "postcode": "KA9 2HQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A210H",
+      "name": "University Hospital Ayr",
+      "postcode": "KA6 6DX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A211H",
+      "name": "Arrol Park Resource Centre",
+      "postcode": "KA7 4DW",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A214H",
+      "name": "Three Towns Resource Centre",
+      "postcode": "KA215RF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A215H",
+      "name": "East Ayrshire Community Hospital",
+      "postcode": "KA181EF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A216H",
+      "name": "Girvan Community Hospital",
+      "postcode": "KA269HQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A217H",
+      "name": "Woodland View",
+      "postcode": "KA128SS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "A218H",
+      "name": "Ayr National Treatment Centre",
+      "postcode": "KA6 6PG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B103H",
+      "name": "The Knoll Hospital",
+      "postcode": "TD113EL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B104H",
+      "name": "Galavale House",
+      "postcode": "TD1 3EB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B105H",
+      "name": "Hawick Community  Hospital",
+      "postcode": "TD9 7AH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B108H",
+      "name": "Andrew Lang Unit",
+      "postcode": "TD7 4LH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B114H",
+      "name": "Kelso Hospital",
+      "postcode": "TD5 7JP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B118H",
+      "name": "Hay Lodge Hospital",
+      "postcode": "EH458JG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B120H",
+      "name": "Borders General Hospital",
+      "postcode": "TD6 9BS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B121H",
+      "name": "Hawick Psychiatric Day Hospital",
+      "postcode": "TD9 7AH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B123H",
+      "name": "Peebles Psychogeriatric Day Hospital",
+      "postcode": "EH458BD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B124H",
+      "name": "Galashiels Psychogeriatric Day Hospital",
+      "postcode": "TD1 1ST",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B127H",
+      "name": "Eyemouth Day Hospital",
+      "postcode": "TD145DA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B128H",
+      "name": "Crumhaugh House",
+      "postcode": "TD9 0BA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B129H",
+      "name": "Borders Specialist Dementia Unit",
+      "postcode": "TD6 9BS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "B130H",
+      "name": "Huntlyburn House",
+      "postcode": "TD6 9BD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y101H",
+      "name": "Castle Douglas Community Hospital",
+      "postcode": "DG7 1EE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y106H",
+      "name": "Kirkcudbright Cottage Hospital",
+      "postcode": "DG6 4BE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y107H",
+      "name": "Thomas Hope Hospital",
+      "postcode": "DG130JX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y108H",
+      "name": "Lochmaben Hospital",
+      "postcode": "DG111RQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y109H",
+      "name": "Moffat Community Hospital",
+      "postcode": "DG109JY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y110H",
+      "name": "Newton Stewart Hospital",
+      "postcode": "DG8 6LZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y114H",
+      "name": "Thornhill Hospital",
+      "postcode": "DG3 5AA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y120H",
+      "name": "Annan Hospital",
+      "postcode": "DG126NQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y126H",
+      "name": "Acorn House",
+      "postcode": "DG1 4SR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y129H",
+      "name": "Wellgreen Cottages",
+      "postcode": "DG1 4TD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y130H",
+      "name": "Innistaigh",
+      "postcode": "DG9 7EH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y132H",
+      "name": "Cardoness",
+      "postcode": "DG1 4TG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y134H",
+      "name": "Treastaigh",
+      "postcode": "DG126JP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y135H",
+      "name": "Nithview Day Hospital",
+      "postcode": "DG1 2SD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y136H",
+      "name": "Laurel Bank (CETU)",
+      "postcode": "DG1 2SA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y138H",
+      "name": "Heather Lodge (CETU)",
+      "postcode": "DG1 2SA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y142H",
+      "name": "Lismore",
+      "postcode": "DG125HJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y144H",
+      "name": "Galloway Community Hospital",
+      "postcode": "DG9 7DQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y145H",
+      "name": "Midpark Hospital",
+      "postcode": "DG1 4TN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Y146H",
+      "name": "Dumfries & Galloway Royal Infirmary",
+      "postcode": "DG2 8RX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F701H",
+      "name": "Cameron Hospital",
+      "postcode": "KY8 5RR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F704H",
+      "name": "Victoria Hospital",
+      "postcode": "KY2 5AH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F705H",
+      "name": "Victoria Maternity Unit",
+      "postcode": "KY2 5AH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F708H",
+      "name": "Adamson Hospital",
+      "postcode": "KY154JG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F709H",
+      "name": "St Andrews Community Hospital",
+      "postcode": "KY168AR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F710H",
+      "name": "Randolph Wemyss Memorial Hospital",
+      "postcode": "KY8 1HU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F711H",
+      "name": "Whytemans Brae Hospital",
+      "postcode": "KY1 2ND",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F712H",
+      "name": "Stratheden Hospital",
+      "postcode": "KY155RR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F714H",
+      "name": "Weston Day Hospital",
+      "postcode": "KY154AN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F716H",
+      "name": "Glenrothes Hospital",
+      "postcode": "KY7 5TG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F805H",
+      "name": "Queen Margaret Hospital",
+      "postcode": "KY120SU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F810H",
+      "name": "Lynebank Hospital",
+      "postcode": "KY118JH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "F812H",
+      "name": "National Treatment Centre Fife Orthopaedics",
+      "postcode": "KY2 5AH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V102H",
+      "name": "Falkirk Community Hospital",
+      "postcode": "FK1 5QE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V105H",
+      "name": "Bo'ness Hospital",
+      "postcode": "EH510DH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V106H",
+      "name": "Bellsdyke Hospital",
+      "postcode": "FK5 4SF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V201H",
+      "name": "Stirling Community Hospital",
+      "postcode": "FK8 2AU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V214H",
+      "name": "Lochview Hospital",
+      "postcode": "FK5 4SE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V215H",
+      "name": "Bungalows/Red Lodge",
+      "postcode": "FK5 4AE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V216H",
+      "name": "Clackmannanshire Community Healthcare Centre",
+      "postcode": "FK103JQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "V217H",
+      "name": "Forth Valley Royal Hospital",
+      "postcode": "FK5 4WR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N101H",
+      "name": "Aberdeen Royal Infirmary",
+      "postcode": "AB252ZN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N102H",
+      "name": "Woodend General Hospital",
+      "postcode": "AB156XS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N103H",
+      "name": "City Hospital",
+      "postcode": "AB245AU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N106H",
+      "name": "The Baird Family Hospital",
+      "postcode": "AB252ZL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N111H",
+      "name": "Hyperbaric Centre",
+      "postcode": "AB165FA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N121H",
+      "name": "Royal Aberdeen Children's Hospital",
+      "postcode": "AB252ZG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N151H",
+      "name": "Aboyne Hospital",
+      "postcode": "AB345HQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N161H",
+      "name": "Aberdeen Maternity Hospital",
+      "postcode": "AB252ZL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N181H",
+      "name": "Glen O'Dee Hospital",
+      "postcode": "AB315SA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N184H",
+      "name": "Maidencraig House",
+      "postcode": "AB156XS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N198H",
+      "name": "Royal Cornhill Hospital",
+      "postcode": "AB252ZH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N331H",
+      "name": "Inverurie Hospital",
+      "postcode": "AB513UL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N333H",
+      "name": "Peterhead Community Hospital",
+      "postcode": "AB422XB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N334H",
+      "name": "Fraserburgh Hospital",
+      "postcode": "AB439NF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N335H",
+      "name": "Jubilee Hospital",
+      "postcode": "AB548EX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N336H",
+      "name": "Turriff Cottage Hospital",
+      "postcode": "AB534DQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N337H",
+      "name": "Chalmers Hospital",
+      "postcode": "AB451JA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N401E",
+      "name": "Buckie Day Hospital",
+      "postcode": "AB561SF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N411H",
+      "name": "Dr Gray's Hospital",
+      "postcode": "IV301SN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N431H",
+      "name": "Seafield Hospital",
+      "postcode": "AB561SF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N432H",
+      "name": "Stephen Cottage Hospital",
+      "postcode": "AB554BH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N433H",
+      "name": "Turner Memorial Hospital",
+      "postcode": "AB555DJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N434H",
+      "name": "Leanchoil Hospital",
+      "postcode": "IV362RF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N492H",
+      "name": "Rehabilitation Hospital",
+      "postcode": "AB117RS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N494H",
+      "name": "Kincardine Community Hospital",
+      "postcode": "AB392NJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N495H",
+      "name": "Pluscarden Clinic",
+      "postcode": "IV301SN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N496H",
+      "name": "375 Great Western Lodge",
+      "postcode": "AB106NU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N499H",
+      "name": "Elmwood",
+      "postcode": "AB253BW",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N500H",
+      "name": "Aberdeen Community Health and Care Village",
+      "postcode": "AB245HY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "N501H",
+      "name": "Rosewell House (NHS Wards)",
+      "postcode": "AB156XN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C204H",
+      "name": "Dumbarton Joint Hospital/Riverview Resource Centre",
+      "postcode": "G82 5JA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C206H",
+      "name": "Vale of Leven General Hospital",
+      "postcode": "G83 0UA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C313H",
+      "name": "Inverclyde Royal Hospital",
+      "postcode": "PA160XN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C403H",
+      "name": "Dykebar Hospital",
+      "postcode": "PA2 7DE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C418H",
+      "name": "Royal Alexandra Hospital",
+      "postcode": "PA2 9PN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C419H",
+      "name": "Larkfield Unit",
+      "postcode": "PA160XN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C420H",
+      "name": "Blythswood House",
+      "postcode": "PA4 8NT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G106H",
+      "name": "Glasgow Dental Hospital and School",
+      "postcode": "G2  3JZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G107H",
+      "name": "Glasgow Royal Infirmary",
+      "postcode": "G4  0SF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G108H",
+      "name": "The Princess Royal Maternity Unit",
+      "postcode": "G31 2ER",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G109H",
+      "name": "Lightburn Hospital",
+      "postcode": "G32 6NB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G112H",
+      "name": "Parkview Resource Centre",
+      "postcode": "G32 7AX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G113H",
+      "name": "Auchinlea Resource Centre",
+      "postcode": "G34 9HQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G207H",
+      "name": "Stobhill Hospital",
+      "postcode": "G21 3UW",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G212H",
+      "name": "Shawpark Resource Centre",
+      "postcode": "G20 9DR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G214H",
+      "name": "Springpark Resource Centre/Day Hosp",
+      "postcode": "G22 5EU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G302H",
+      "name": "Leverndale Hospital",
+      "postcode": "G53 7TU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G306H",
+      "name": "New Victoria Hospital",
+      "postcode": "G42 9LF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G405H",
+      "name": "Queen Elizabeth University Hospital",
+      "postcode": "G51 4TF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G408H",
+      "name": "Florence Street Mental Health Resource Centre",
+      "postcode": "G5  0YX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G410H",
+      "name": "Shawmill Resource Centre",
+      "postcode": "G43 1RR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G504H",
+      "name": "Gartnavel General Hospital (Admin Purposes)",
+      "postcode": "G12 0YN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G505H",
+      "name": "Gartnavel Royal Hospital",
+      "postcode": "G12 0XH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G507H",
+      "name": "Centre for Integrative Care",
+      "postcode": "G12 0YN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G513H",
+      "name": "Royal Hospital for Children",
+      "postcode": "G51 4TF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G516H",
+      "name": "West Glasgow",
+      "postcode": "G12 0YN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G517H",
+      "name": "Beatson West of Scotland Cancer Centre",
+      "postcode": "G12 0YN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G598H",
+      "name": "Arran Resource Centre",
+      "postcode": "G40 2BJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G599H",
+      "name": "Riverside Resource Centre",
+      "postcode": "G11 6HU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G600H",
+      "name": "Festival Business Park",
+      "postcode": "G51 1DH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G603H",
+      "name": "Arndale Resource Centre",
+      "postcode": "G15 7TS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G607H",
+      "name": "Woodlands Resource Centre",
+      "postcode": "G66 2HL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G611H",
+      "name": "Netherton",
+      "postcode": "G13 1AL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G612H",
+      "name": "Rowanbank Clinic",
+      "postcode": "G21 3UL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G613H",
+      "name": "Skye House",
+      "postcode": "G21 3UZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "G614H",
+      "name": "Orchard View",
+      "postcode": "PA160XN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C101H",
+      "name": "Argyll and Bute Hospital",
+      "postcode": "PA318LD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C106H",
+      "name": "Cowal Community Hospital",
+      "postcode": "PA237RL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C108H",
+      "name": "Islay Hospital",
+      "postcode": "PA437JD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C113H",
+      "name": "Victoria Hospital",
+      "postcode": "PA209JJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C121H",
+      "name": "Lorn & Islands Hospital",
+      "postcode": "PA344HH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "C122H",
+      "name": "Campbeltown Hospital",
+      "postcode": "PA286LE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H101H",
+      "name": "Dunbar Hospital",
+      "postcode": "KW147XE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H103H",
+      "name": "Caithness General Hospital",
+      "postcode": "KW1 5NS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H104H",
+      "name": "Wick Town and County Hospital",
+      "postcode": "KW1 5NQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H106H",
+      "name": "Lawson Memorial Hospital",
+      "postcode": "KW106SS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H201H",
+      "name": "RNI Community Hospital",
+      "postcode": "IV3 5SF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H202H",
+      "name": "Raigmore Hospital",
+      "postcode": "IV2 3UJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H208H",
+      "name": "Nairn Town and County Hospital",
+      "postcode": "IV125EE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H212H",
+      "name": "Belford Hospital",
+      "postcode": "PH336BS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H213H",
+      "name": "Glencoe Hospital",
+      "postcode": "PH494HT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H215H",
+      "name": "Portree Hospital",
+      "postcode": "IV519BZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H217H",
+      "name": "Ross Memorial Hospital",
+      "postcode": "IV159QT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H219H",
+      "name": "County Community Hospital Invergordon",
+      "postcode": "IV180JR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H221H",
+      "name": "Osprey House",
+      "postcode": "IV2 3DZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H223H",
+      "name": "New Craigs Hospital",
+      "postcode": "IV3 8PJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H224H",
+      "name": "Mid-Argyll Community Hospital and Integrated Care Centre",
+      "postcode": "PA318JZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H226H",
+      "name": "Migdale Hospital",
+      "postcode": "IV243ER",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H227H",
+      "name": "Mull and Iona Community Hospital",
+      "postcode": "PA656BH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H228H",
+      "name": "Badenoch and Strathspey Community Hospital",
+      "postcode": "PH221AJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H229H",
+      "name": "Broadford Hospital",
+      "postcode": "IV499AA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H230H",
+      "name": "National Treatment Centre - Highland",
+      "postcode": "IV2 5NA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "H231H",
+      "name": "Lochaber Hospital",
+      "postcode": "PH337GA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L103H",
+      "name": "Coathill Hospital",
+      "postcode": "ML5 4DN",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L104H",
+      "name": "Victoria Memorial Cottage Hospital",
+      "postcode": "G65 9AG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L105H",
+      "name": "Wester Moffat Hospital",
+      "postcode": "ML6 8LW",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L106H",
+      "name": "University Hospital Monklands ",
+      "postcode": "ML6 0JS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L203H",
+      "name": "Cleland Hospital",
+      "postcode": "ML1 5NR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L206H",
+      "name": "Kello Hospital",
+      "postcode": "ML126AF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L207H",
+      "name": "Lady Home Cottage Hospital",
+      "postcode": "ML110RH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L216H",
+      "name": "Kirklands Hospital",
+      "postcode": "G71 8BB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L218H",
+      "name": "Airbles Road Centre",
+      "postcode": "ML1 2TJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L302H",
+      "name": "University Hospital Hairmyres",
+      "postcode": "G75 8RG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L304H",
+      "name": "Stonehouse Hospital",
+      "postcode": "ML9 3NT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L305H",
+      "name": "Udston Hospital",
+      "postcode": "ML3 9LA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L306H",
+      "name": "Coathill House",
+      "postcode": "ML5 5EA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L307H",
+      "name": "Beckford Lodge",
+      "postcode": "ML3 0AZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L308H",
+      "name": "University Hospital Wishaw ",
+      "postcode": "ML2 0DP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "L395E",
+      "name": "Red Deer Centre/Day Hospital",
+      "postcode": "G75 8NH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S102H",
+      "name": "Belhaven Hospital",
+      "postcode": "EH421TR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S107H",
+      "name": "Edenhall Hospital",
+      "postcode": "EH217TZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S108H",
+      "name": "Edington Cottage Hospital",
+      "postcode": "EH394PU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S109H",
+      "name": "Herdmanflat Hospital",
+      "postcode": "EH413BU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S116H",
+      "name": "Western General Hospital",
+      "postcode": "EH4 2XU",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S201H",
+      "name": "Astley Ainslie Hospital",
+      "postcode": "EH9 2HL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S203H",
+      "name": "Chalmers Hospital",
+      "postcode": "EH3 9HQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S206H",
+      "name": "Edinburgh Dental Institute",
+      "postcode": "EH3 9HA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S209H",
+      "name": "Liberton Hospital",
+      "postcode": "EH166UB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S217H",
+      "name": "Royal Edinburgh Hospital",
+      "postcode": "EH105HF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S232H",
+      "name": "Cambridge Street Day Centre",
+      "postcode": "EH1 2DY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S234H",
+      "name": "William Fraser Centre",
+      "postcode": "EH105HF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S235H",
+      "name": "The Islay Centre",
+      "postcode": "EH105HF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S240H",
+      "name": "Glencorse Day Centre",
+      "postcode": "EH260QZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S241H",
+      "name": "Bonnyrigg Day Centre",
+      "postcode": "EH224RT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S243H",
+      "name": "Ballenden House",
+      "postcode": "EH8 9HL",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S305H",
+      "name": "St Michael's Hospital",
+      "postcode": "EH496QS",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S306H",
+      "name": "Tippethill Hospital",
+      "postcode": "EH483BQ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S307H",
+      "name": "Whitburn Day Hospital",
+      "postcode": "EH470SD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S308H",
+      "name": "St John's Hospital",
+      "postcode": "EH546PP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S309H",
+      "name": "Inchkeith House",
+      "postcode": "EH6 8NP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S310H",
+      "name": "Ferryfield Community Hospital",
+      "postcode": "EH5 2HF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S311H",
+      "name": "Bathgate House Day Hospital",
+      "postcode": "EH484PJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S312H",
+      "name": "Learning Disabilities Service Healthcare Houses",
+      "postcode": "EH105EZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S313H",
+      "name": "Ellen's Glen Community Hospital",
+      "postcode": "EH166FF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S314H",
+      "name": "Royal Infirmary of Edinburgh at Little France",
+      "postcode": "EH164SA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S315H",
+      "name": "Findlay Community Hospital",
+      "postcode": "EH6 7LG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S316H",
+      "name": "Princess Alexandra Eye Pavilion",
+      "postcode": "EH3 9HA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S317H",
+      "name": "Whitburn House",
+      "postcode": "EH470DD",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S318H",
+      "name": "Midlothian Community Hospital",
+      "postcode": "EH223ND",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S319H",
+      "name": "Royal Hospital for Children and Young People",
+      "postcode": "EH164TJ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S320H",
+      "name": "East Lothian Community Hospital",
+      "postcode": "EH413PF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "S321H",
+      "name": "Drumbrae House",
+      "postcode": "EH4 7HP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "D101H",
+      "name": "State Hospital",
+      "postcode": "ML118RP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "D102H",
+      "name": "Golden Jubilee University National Hospital",
+      "postcode": "G81 4DY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "R103H",
+      "name": "The Balfour",
+      "postcode": "KW151NZ",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "Z102H",
+      "name": "Gilbert Bain Hospital",
+      "postcode": "ZE1 0TB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T101H",
+      "name": "Ninewells Hospital",
+      "postcode": "DD1 9SY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T104H",
+      "name": "Kings Cross Hospital",
+      "postcode": "DD3 8EA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T107H",
+      "name": "Royal Victoria Hospital",
+      "postcode": "DD2 1SP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T113H",
+      "name": "Dundee Dental Hospital",
+      "postcode": "DD1 4HR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T115H",
+      "name": "Strathmartine Hospital",
+      "postcode": "DD3 0PG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T116H",
+      "name": "Armitstead Child Development Centre",
+      "postcode": "DD3 8EA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T120H",
+      "name": "Hawkhill Day Hospital",
+      "postcode": "DD1 5LB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T121H",
+      "name": "Dundonald Centre",
+      "postcode": "DD3 7PY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T123H",
+      "name": "Royal Victoria Day Hospital",
+      "postcode": "DD2 1SP",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T202H",
+      "name": "Perth Royal Infirmary",
+      "postcode": "PH1 1NX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T205H",
+      "name": "St Margaret's Hospital",
+      "postcode": "PH3 1JH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T209H",
+      "name": "Blairgowrie & Rattray Cottage Hospital",
+      "postcode": "PH106EE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T215H",
+      "name": "Murray Royal Hospital",
+      "postcode": "PH2 7BH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T304H",
+      "name": "Arbroath Infirmary",
+      "postcode": "DD112AT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T312H",
+      "name": "Stracathro Hospital",
+      "postcode": "DD9 7QA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T313H",
+      "name": "Whitehills Hospital",
+      "postcode": "DD8 3DY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T314H",
+      "name": "Gowanlea",
+      "postcode": "DD115DX",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T316H",
+      "name": "Crieff Community Hospital",
+      "postcode": "PH7 3HR",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T317H",
+      "name": "Carseview Centre",
+      "postcode": "DD2 1NH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T319H",
+      "name": "Whitehills Health and Community Care Centre",
+      "postcode": "DD8 3DY",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T320H",
+      "name": "Pitlochry Community Hospital",
+      "postcode": "PH165FG",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T321H",
+      "name": "Perth Dental Hospital",
+      "postcode": "PH1 1RA",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T322H",
+      "name": "Kingsway Care Centre",
+      "postcode": "DD2 3PT",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T323H",
+      "name": "Bluebell Intermediate Care Unit",
+      "postcode": "DD2 5JB",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T324H",
+      "name": "Dudhope Young Peoples Inpatient Unit",
+      "postcode": "DD3 6HH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "T325H",
+      "name": "CAMHS Hospital Unit",
+      "postcode": "DD3 6HH",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "W106H",
+      "name": "St Brendans Cot Hospital",
+      "postcode": "HS9 5XE",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "W107H",
+      "name": "Western Isles Hospital",
+      "postcode": "HS1 2AF",
+      "country": "Scotland",
+      "kind": "hospital"
+    },
+    {
+      "code": "W108H",
+      "name": "Uist & Barra Hospital",
+      "postcode": "HS7 5LA",
+      "country": "Scotland",
+      "kind": "hospital"
+    }
+  ]
+}

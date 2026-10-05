@@ -1,8 +1,7 @@
-import { useCallback } from "react";
 import { useReactToPrint } from "react-to-print";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { _post } from "../../utils/ApiService";
+import { _get, _post } from "../../utils/ApiService";
 import APIConfig from "../../utils/ApiConfig";
 import { showError, showSuccess } from "../../utils/toaster";
 
@@ -13,16 +12,27 @@ const QRCodeSection = ({ clientId, clientName }) => {
     // ✅ useRef for contentRef (new pattern)
     const contentRef = useRef(null);
 
-    useEffect(() => {
-        if (clientId) regenerateQRCode();
-    }, [clientId, regenerateQRCode]);
+    const loadQRCode = useCallback(async () => {
+        try {
+            const res = await _get(APIConfig.CLIENT_SETTINGS.GET_BY_ID(clientId));
+            const settings = res?.data?.results?.data || res?.data?.results || {};
+            setQrCodeId(settings.qrCodeId || null);
+            setGeneratedAt(settings.qrCodeChangedAt ? new Date(settings.qrCodeChangedAt) : null);
+        } catch (err) {
+            showError(err?.response?.data?.message || "Could not load the client's QR code");
+        }
+    }, [clientId]);
 
-    const regenerateQRCode = useCallback(async () => {
+    useEffect(() => {
+        if (clientId) void loadQRCode();
+    }, [clientId, loadQRCode]);
+
+    const regenerateQRCode = async () => {
         try {
             const res = await _post(APIConfig.CLIENT_SETTINGS.REGENERATE_QR_CODE(clientId));
             if (res?.data?.error === false) {
                 setQrCodeId(res?.data?.results?.data?.qrCodeId || res?.data?.results?.qrCodeId);
-                setGeneratedAt(new Date());
+                setGeneratedAt(new Date(res?.data?.results?.data?.qrCodeChangedAt || Date.now()));
                 // showSuccess("QR Code generated");
             } else {
                 showError(res?.data?.message || "Failed to regenerate QR code");
@@ -30,7 +40,7 @@ const QRCodeSection = ({ clientId, clientName }) => {
         } catch (err) {
             showError(err?.response?.data?.message || "Network error");
         }
-    }, [clientId]);
+    };
 
     // ✅ Use contentRef directly (newer API)
     const handlePrint = useReactToPrint({
@@ -41,6 +51,7 @@ const QRCodeSection = ({ clientId, clientName }) => {
 
     return (
         <div className="mt-6">
+            {!qrCodeId && <button type="button" onClick={regenerateQRCode} className="rounded bg-customTextNavy px-4 py-2 text-sm font-semibold text-white">Generate client QR code</button>}
             {qrCodeId && (
                 <div className="mt-6 flex items-start gap-6 text-left">
                     <div className="rounded border p-3">

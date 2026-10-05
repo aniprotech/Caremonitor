@@ -3,7 +3,7 @@ import { useFormikContext } from "formik";
 import TextAreaField from "../../../../../components/TextInput/TextAreaField";
 import TextField from "../../../../../components/TextInput/TextInput";
 import useScrollToTop from "../../../../../hooks/useScrollToTop";
-import SearchableDropdown from "../../../../../components/DropdownInput/SearchableDropdown";
+import ClinicalAutocomplete from "../../../../../components/ClinicalAutocomplete/ClinicalAutocomplete";
 import RadioButtonGroup from "../../../../../components/TextInput/RadioButtonGroup";
 import PhoneNumberField from "../../../../../components/DropdownInput/PhoneNumberDropdown";
 import { getClientsClinicalMedicalSupportOptions } from "../../../../../constants/clientConstants";
@@ -15,16 +15,6 @@ const EditClinicalDetails = () => {
     const clinicalDetails = values.clinicalDetails || {};
     const { clientsPersonalDetailData } = useGlobalStore();
     const clientName = clientsPersonalDetailData ? `${clientsPersonalDetailData.firstName}` : 'the client';
-
-    const options = [
-        { value: "fever", label: "Fever" },
-        { value: "stroke", label: "Stroke" },
-        { value: "malaria", label: "Malarial fever" },
-    ];
-
-    const alsoKnownAsMap = {
-        Fever: ["Febrile", "Pyrexia", "Pyrexial"],
-    };
 
     return (
         <div className="space-y-8 pb-20">
@@ -38,20 +28,20 @@ const EditClinicalDetails = () => {
                 <TextField
                     label={`${clientName}'s NHS number`}
                     name="clinicalDetails.nhsNumber"
-                    type="number"
+                    type="text"
                     value={clinicalDetails.nhsNumber || ""}
-                    valueChange={(e) => setFieldValue("clinicalDetails.nhsNumber", parseInt(e.target.value, 10))}
+                    valueChange={(e) => setFieldValue("clinicalDetails.nhsNumber", e.target.value)}
                 />
+                <p className="text-xs text-gray-600">The 10-digit format and check digit are checked on save. This does not confirm the number belongs to this client; confirm it against an NHS record.</p>
 
-                <SearchableDropdown
+                <ClinicalAutocomplete
                     label={`${clientName}'s medical history`}
-                    name="clinicalDetails.medicalHistory"
-                    options={options}
+                    kind="history"
                     value={clinicalDetails.medicalHistory || []}
                     onChange={(value) => setFieldValue("clinicalDetails.medicalHistory", value)}
-                    alsoKnownAsMap={alsoKnownAsMap}
-                    isMulti
+                    multiple
                 />
+                <ClinicalAutocomplete label="Hospital (if applicable)" kind="hospital" value={clinicalDetails.hospitalName || ""} onChange={(value) => setFieldValue("clinicalDetails.hospitalName", value)} />
 
                 <RadioButtonGroup
                     label={`Does ${clientName} require medical support?`}
@@ -111,9 +101,9 @@ const EditClinicalDetails = () => {
                 <TextField
                     label="Phone number"
                     name="clinicalDetails.gpPhoneNumber"
-                    type="number"
+                    type="tel"
                     value={clinicalDetails.gpPhoneNumber || ""}
-                    valueChange={(e) => setFieldValue("clinicalDetails.gpPhoneNumber", parseInt(e.target.value, 10))}
+                    valueChange={(e) => setFieldValue("clinicalDetails.gpPhoneNumber", e.target.value)}
                 />
             </div>
 

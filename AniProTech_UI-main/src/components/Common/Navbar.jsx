@@ -22,7 +22,7 @@ const Navbar = () => {
             const account = data?.results?.data;
             if (account?.organisation) setUserData({ ...userData, organisation: { name: account.organisation.name, logoPath: account.organisation.logo_path || "" } });
         }).catch(() => {});
-    }, [setUserData, userData, userData?.user?.role]);
+    }, [userData?.user?.role]);
     const organisationName = userData?.organisation?.name || "Ani-Tech Elderly Care";
 
     return (

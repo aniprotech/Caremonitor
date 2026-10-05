@@ -11,6 +11,8 @@ import { createFiles } from "./files.js";
 import { reply, fail, uuid } from "./http.js";
 import { registerClientFeed } from "./services/client-feed.js";
 import { registerUsers } from "./services/users.js";
+import { registerClinicalCatalog } from "./services/clinical-catalog.js";
+import { registerSharedOptions } from "./services/shared-options.js";
 import { registerCarePlans } from "./services/care-plans.js";
 import { registerTaskLibrary } from "./services/task-library.js";
 import { registerTasks } from "./services/tasks.js";
@@ -32,7 +34,8 @@ import { registerActivity } from "./services/activity.js";
 import { registerFinanceReview } from './services/finance-review.js';
 import { registerFinance } from "./services/finance.js";
 import { registerAccounting } from "./services/accounting.js";
-import { registerTinkBanking, tinkCallback } from "./services/tink-banking.js";
+import { registerInvoiceReconciliation } from "./services/invoice-reconciliation.js";
+import { registerSaltEdgeBanking, saltEdgeCallback } from "./services/salt-edge-banking.js";
 import { registerReporting } from "./services/reporting.js";
 import {createInboxNotifications} from './inbox-notifications.js';
 import {registerNotificationDelivery} from './services/notification-delivery.js';
@@ -203,7 +206,7 @@ export function createApp({ db, config, mail = createMail(config), pushTransport
       return res.redirect(`${config.frontendUrl}/login?authError=microsoft_failed`);
     }
   });
-  app.get("/api/accounting/banking/tink/callback", authLimit, tinkCallback(ctx));
+  app.get("/api/accounting/banking/salt-edge/callback", authLimit, saltEdgeCallback(ctx));
   app.get("/uploads/{*file}", files.download);
   app.use("/api/portal", createPortal(ctx));
   app.use("/api", auth.authenticate);
@@ -240,6 +243,8 @@ export function createApp({ db, config, mail = createMail(config), pushTransport
     registerPrivacy,
     registerPlatformAdmin,
     registerUsers,
+    registerClinicalCatalog,
+    registerSharedOptions,
     registerClientFeed,
     registerCarePlans,
     registerTasks,
@@ -260,7 +265,8 @@ export function createApp({ db, config, mail = createMail(config), pushTransport
     registerCareLog,
     registerFinance,
     registerAccounting,
-    registerTinkBanking,
+    registerInvoiceReconciliation,
+    registerSaltEdgeBanking,
     registerFinanceReview,
     registerReporting,
     registerNotificationDelivery,

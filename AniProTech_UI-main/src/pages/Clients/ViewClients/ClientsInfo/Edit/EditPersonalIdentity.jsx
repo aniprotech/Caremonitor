@@ -1,11 +1,10 @@
 import React from "react";
 import { useFormikContext } from "formik";
 import useScrollToTop from "../../../../../hooks/useScrollToTop";
-import DropdownField from "../../../../../components/DropdownInput/Dropdown";
+import SharedOptionField from "../../../../../components/SharedOptionField";
 import TextAreaField from "../../../../../components/TextInput/TextAreaField";
-import { clientsEthnicityOptions, clientsReligionOptions, clientsSexOptions } from "../../../../../constants/clientConstants";
+import { clientsEthnicityOptions, clientsReligionOptions, clientsSexOptions, clientsGenderOptions, clientsSexualOrientationOptions } from "../../../../../constants/clientConstants";
 import RadioButtonGroup from "../../../../../components/TextInput/RadioButtonGroup";
-import TextField from "../../../../../components/TextInput/TextInput";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
 
 const EditPersonalIdentity = () => {
@@ -27,27 +26,24 @@ const EditPersonalIdentity = () => {
 
                 <div className="">
                     <p className="pb-3 text-lg text-customDefaultTextColor">Ethnicity</p>
-                    <DropdownField
+                    <SharedOptionField
+                        kind="ethnicity"
                         label={`What ethnic group does ${clientName} identify with?`}
-                        name="personalIdentity.ethnicity"
-                        options={clientsEthnicityOptions}
+                        builtIn={clientsEthnicityOptions}
                         value={personalIdentity.ethnicity || ""}
-                        valueChange={(e) => setFieldValue("personalIdentity.ethnicity", e.target.value)}
-                        componentName="FormikValidation"
+                        onChange={(value) => setFieldValue("personalIdentity.ethnicity", value)}
                     />
                 </div>
 
                 <div>
                     <p className="pb-3 text-lg text-customDefaultTextColor">Religion</p>
 
-                    <DropdownField
+                    <SharedOptionField
+                        kind="religion"
                         label={`What religion or belief does ${clientName} identify with?`}
-                        name="personalIdentity.religion"
-                        options={clientsReligionOptions}
+                        builtIn={clientsReligionOptions}
                         value={personalIdentity.religion || ""}
-                        valueChange={(e) => setFieldValue("personalIdentity.religion", e.target.value)}
-                        // required
-                        componentName="FormikValidation"
+                        onChange={(value) => setFieldValue("personalIdentity.religion", value)}
                     />
                     <div className="pt-6">
                         <TextAreaField
@@ -86,24 +82,24 @@ const EditPersonalIdentity = () => {
 
                     <div>
                         <p className="pb-3 text-lg text-customDefaultTextColor">Gender</p>
-                        <RadioButtonGroup
+                        <SharedOptionField
+                            kind="gender"
                             label={`Which of these best describes ${clientName}'s current gender?`}
-                            name="personalIdentity.gender"
-                            options={clientsSexOptions}
+                            builtIn={clientsGenderOptions}
+                            radio
                             value={personalIdentity.gender || ""}
-                            valueChange={(e) => setFieldValue("personalIdentity.gender", e.target.value)}
+                            onChange={(value) => setFieldValue("personalIdentity.gender", value)}
                         />
                     </div>
                     <div>
                         <p className="pb-3 text-lg text-customDefaultTextColor">Sexual Orientation</p>
 
-                        <TextField
+                        <SharedOptionField
+                            kind="sexual_orientation"
                             label={`What best describes ${clientName}'s current sexual orientation?`}
-                            name="personalIdentity.sexualOrientation"
+                            builtIn={clientsSexualOrientationOptions}
                             value={personalIdentity.sexualOrientation || ""}
-                            valueChange={(e) => setFieldValue("personalIdentity.sexualOrientation", e.target.value)}
-                            componentName="FormikValidation"
-                            placeHolder="eg: Homosexual"
+                            onChange={(value) => setFieldValue("personalIdentity.sexualOrientation", value)}
                         />
                         <div className="pt-6">
                             <TextAreaField

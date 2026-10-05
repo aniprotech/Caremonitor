@@ -5,6 +5,7 @@ export const clinicalDetailsConfig = [
         fields: [
             { label: "NHS number", key: "nhsNumber" },
             { label: "Medical history", key: "medicalHistory" },
+            { label: "Hospital", key: "hospitalName" },
             { label: "Medical support", key: "medicalSupport" },
         ],
     },

@@ -59,6 +59,7 @@ export const personalIdentityData = (data) => ({
 export const clinicalDetailsData = (data) => ({
     nhsNumber: data?.nhsNumber || "",
     medicalHistory: Array.isArray(data?.medicalHistory) ? data?.medicalHistory : [],
+    hospitalName: data?.hospitalName || "",
     medicalSupport: data?.medicalSupport ?? false,
     allergiesIntolerances: data?.allergiesIntolerances || "",
     gpPracticeName: data?.gpPracticeName || "",

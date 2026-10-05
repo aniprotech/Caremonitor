@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import useScrollToTop from "../../../hooks/useScrollToTop";
@@ -40,9 +39,9 @@ const ClientsSettings = () => {
         if (clientId) {
             fetchClientSettings();
         }
-    }, [clientId, fetchClientSettings]);
+    }, [clientId]);
 
-    const fetchClientSettings = useCallback(async () => {
+    const fetchClientSettings = async () => {
         setLoading(true);
         try {
             const res = await _get(APIConfig.CLIENT_SETTINGS.GET_BY_ID(clientId));
@@ -56,7 +55,7 @@ const ClientsSettings = () => {
         } finally {
             setLoading(false);
         }
-    }, [clientId]);
+    };
 
     const updateSettingsLocally = (setting, value) => {
         setSettings((prev) => ({

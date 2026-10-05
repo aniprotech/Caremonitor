@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { reply, fail, requireValue, pagination, dates } from "../http.js";
 import { parseJson, replaceChildren, singleton } from "./common.js";
+import { normaliseNhsNumber } from "../nhs-number.js";
 
 export function registerUsers(ctx, route) {
   const { repo, db, auth, files } = ctx;
@@ -292,6 +293,11 @@ export function registerUsers(ctx, route) {
   });
   route("POST", "/api/client-information/update/:userId", async (req, res) =>
     db.transaction(async () => {
+      if (req.body?.nhsNumber !== undefined && req.body.nhsNumber !== null && String(req.body.nhsNumber).trim() !== "") {
+        const valid = normaliseNhsNumber(req.body.nhsNumber);
+        if (!valid) fail(400, "Enter a valid 10-digit NHS number with a correct check digit");
+        req.body.nhsNumber = valid;
+      }
       const row = await singleton(
         ctx,
         req,

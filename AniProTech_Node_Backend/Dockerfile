@@ -11,6 +11,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
 COPY scripts ./scripts
+COPY reference-data ./reference-data
 USER app
 EXPOSE 8080
 CMD ["node", "src/server.js"]

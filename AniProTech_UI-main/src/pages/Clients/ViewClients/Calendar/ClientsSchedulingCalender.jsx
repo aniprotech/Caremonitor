@@ -84,7 +84,7 @@ const ClientSchedulingCalender = ({ startDate }) => {
                 description: "Reviewing project progress and upcoming tasks.",
             },
         ],
-        [],
+        [calendarDate],
     );
 
 

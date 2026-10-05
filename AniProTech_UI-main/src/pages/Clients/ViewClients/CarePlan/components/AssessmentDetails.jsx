@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
@@ -40,7 +39,7 @@ const AssessmentDetails = () => {
     };
 
     // Get API endpoint based on assessment type
-    const getAPIEndpoint = useCallback((assessmentType, assessmentId) => {
+    const getAPIEndpoint = (assessmentType, assessmentId) => {
         const normalizedType = assessmentType?.replace(/-/g, "_").toLowerCase();
         if (isInitialAssessment) {
             const endpoint = getAssessmentByIdAPI(normalizedType, assessmentId);
@@ -52,7 +51,7 @@ const AssessmentDetails = () => {
             return null;
         }
         return null;
-    }, [isAdditionalAssessment, isAuditingAssessment, isInitialAssessment]);
+    };
 
     // Fetch assessment data
     useEffect(() => {
@@ -95,7 +94,7 @@ const AssessmentDetails = () => {
         if (clientId && assessmentType && assessmentId) {
             fetchAssessmentData();
         }
-    }, [clientId, assessmentType, assessmentId, getAPIEndpoint]);
+    }, [clientId, assessmentType, assessmentId]);
 
     // Group questions by section
     const groupQuestionsBySection = (questions) => {

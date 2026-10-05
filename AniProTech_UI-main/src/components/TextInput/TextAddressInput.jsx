@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { debounce } from "lodash";
 
@@ -8,7 +8,7 @@ const TextAddressField = ({ value = "", valueChange, name }) => {
 
   const MAP_API_KEY = import.meta.env.VITE_APP_MAP_API_KEY;
 
-  const fetchSuggestions = useCallback(async (inputVal) => {
+  const fetchSuggestions = async (inputVal) => {
     try {
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
         inputVal
@@ -27,15 +27,15 @@ const TextAddressField = ({ value = "", valueChange, name }) => {
       console.error("Error fetching address suggestions:", error);
       setSuggestions([]);
     }
-  }, [MAP_API_KEY]);
+  };
 
-  const debouncedFetch = useMemo(() => debounce((val) => {
+  const debouncedFetch = debounce((val) => {
     if (val.length > 2) {
       fetchSuggestions(val);
     } else {
       setSuggestions([]);
     }
-  }, 300), [fetchSuggestions]);
+  }, 300);
 
   const handleInputChange = (e) => {
     const val = e.target.value;
@@ -83,7 +83,7 @@ const TextAddressField = ({ value = "", valueChange, name }) => {
 
   useEffect(() => {
     return () => debouncedFetch.cancel();
-  }, [debouncedFetch]);
+  }, []);
 
   return (
     <div className="relative w-full">

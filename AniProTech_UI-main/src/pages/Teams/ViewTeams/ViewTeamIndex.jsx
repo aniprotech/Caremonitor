@@ -22,7 +22,7 @@ const ViewTeamIndex = () => {
 
     useEffect(() => {
         fetchData(() => _get(APIConfig.USERS.GET_BY_ID(id)), null, null, setTeamsPersonalDetailData);
-    }, [id, setTeamsPersonalDetailData]);
+    }, [id]);
 
     // Handle window resize to detect mobile screens
     useEffect(() => {

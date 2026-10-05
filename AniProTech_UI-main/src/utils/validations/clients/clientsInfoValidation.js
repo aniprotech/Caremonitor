@@ -12,12 +12,12 @@ export const clientsKeyContactsValidationSchema = Yup.object().shape({
 });
 
 export const clientsPersonalIdentityValidationSchema = Yup.object().shape({
-    ethnicity: Yup.string().required("Ethnicity is required"),
-    religion: Yup.string().required("Religion is required"),
+    ethnicity: Yup.string().nullable(),
+    religion: Yup.string().nullable(),
     cultureImpact: Yup.string().nullable(),
-    sex: Yup.string().required("Sex is required"),
-    gender: Yup.string().required("Gender is required"),
-    sexualOrientation: Yup.string().required("Sexual orientation is required"),
+    sex: Yup.string().nullable(),
+    gender: Yup.string().nullable(),
+    sexualOrientation: Yup.string().nullable(),
     sexualOrientationImpact: Yup.string().nullable(),
     jobsAndOccupations: Yup.string().nullable(),
     significantPlaces: Yup.string().nullable(),

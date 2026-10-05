@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { _get } from "../../utils/ApiService";
-import { buttonClass, downloadCsv } from "../../components/Operations/common-utils";
+import { buttonClass, downloadCsv } from "../../components/Operations/common";
 import { additionalReportIds } from "./additionalReportIds";
 import { ReportBars, ReportDonut } from "./ReportCharts";
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { _get, _post } from "../../utils/ApiService";
-import { Page, Field, ErrorBox } from "../../components/Operations/common";
-import { inputClass, buttonClass, londonToday, money, downloadCsv } from "../../components/Operations/common-utils";
+import { Link } from "react-router-dom";
+import { Page, Field, ErrorBox, inputClass, buttonClass, londonToday, money, downloadCsv } from "../../components/Operations/common";
 export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
     const [tab, setTab] = useState(initialTab),
         [people, setPeople] = useState([]),
@@ -84,6 +84,15 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
         });
     const record = detail || preview;
     const documentName = (d) => `${d.kind === "INVOICE" ? "INV" : "PAY"}-${String(d.number).padStart(5, "0")}`;
+    const paymentSummary = (d) => {
+        if (d.kind !== "INVOICE" || !["ISSUED", "PAID"].includes(d.status)) return d.status;
+        const paid = Number(d.paidPence || 0), credited = Number(d.creditedPence || 0);
+        const due = Math.max(0, Number(d.totalPence) - paid - credited);
+        if (d.status === "PAID" && paid === 0 && due > 0)
+            return "PAID previously · bank payment not matched";
+        if (due > 0) return `${paid > 0 ? "PART PAID" : "UNPAID"} · ${money(due)} due`;
+        return `${paid > 0 ? "PAID" : "CREDITED"} · ${money(due)} due`;
+    };
     const exportDocument=()=>run(async()=>{const result=(await _post(`/api/finance/documents/${detail.id}/export`,{format:"CSV"})).data.results.data;downloadCsv(documentName(detail)+".csv",[["Date","Type","Visit","Minutes","Hourly GBP","Amount GBP"],...result.lines.map(l=>[l.date,l.component,l.title,l.minutes,(l.hourlyPence/100).toFixed(2),(l.amountPence/100).toFixed(2)])]);setReconciliation(result.reconciliation)});
     const transitionCredit=(item,status)=>run(async()=>{await _post(`/api/finance/credit-notes/${item.id}/status`,{expectedStatus:item.status,status});setReload(n=>n+1)});
     return (
@@ -285,7 +294,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                             </h2>
                             <p className="text-sm">
                                 {record.from} to {record.to}
-                                {detail && ` · ${detail.status}`}
+                                {detail && ` · ${paymentSummary(detail)}`}
                             </p>
                             <div className="overflow-auto">
                                 <table className="w-full text-left text-sm">
@@ -367,7 +376,9 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                             </button>
                                         )}
                                         {detail.kind==="INVOICE"&&["ISSUED","PAID"].includes(detail.status)&&<button className="rounded border px-3 py-2" onClick={()=>setCredit({financeLineId:detail.lines[0]?.id||"",amount:"",reason:""})}>Create credit note</button>}
-                                        {["ISSUED", "APPROVED"].includes(detail.status) && (
+                                        {detail.kind === "INVOICE" && detail.status === "ISSUED" &&
+                                          <Link className={buttonClass} to="/admin/accounting?section=reconciliation">Reconcile payment</Link>}
+                                        {detail.kind === "PAYRUN" && detail.status === "APPROVED" && (
                                             <button
                                                 disabled={busy}
                                                 className={buttonClass}
@@ -420,7 +431,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                             {d.from} to {d.to}
                                         </td>
                                         <td className="p-3">{money(d.totalPence)}</td>
-                                        <td className="p-3">{d.status}</td>
+                                        <td className="p-3">{paymentSummary(d)}</td>
                                         <td className="p-3">
                                             <button
                                                 className="underline"

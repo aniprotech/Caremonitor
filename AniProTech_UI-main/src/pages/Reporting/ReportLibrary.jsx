@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { _get } from "../../utils/ApiService";
-import { buttonClass, downloadCsv, inputClass } from "../../components/Operations/common-utils";
+import { buttonClass, downloadCsv, inputClass } from "../../components/Operations/common";
 import { ReportBars, ReportDonut } from "./ReportCharts";
 
 const unwrap = (response) => response.data.results.data;

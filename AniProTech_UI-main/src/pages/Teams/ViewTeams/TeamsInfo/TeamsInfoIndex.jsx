@@ -34,7 +34,7 @@ const TeamsInfoIndex = () => {
 
     useEffect(() => {
         fetchData(() => _get(APIConfig.USERS.GET_BY_ID(id)), setData, setLoading ,setTeamsPersonalDetailData);
-    }, [id, setTeamsPersonalDetailData]);    
+    }, [id]);
 
 
     if (loading) {

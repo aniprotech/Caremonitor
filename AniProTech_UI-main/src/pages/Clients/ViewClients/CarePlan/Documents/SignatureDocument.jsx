@@ -36,9 +36,9 @@ const SignatureDocument = () => {
 
     useEffect(() => {
         fetchAll();
-    }, [clientId, fetchAll]);
+    }, [clientId]);
 
-    const fetchAll = useCallback(async () => {
+    const fetchAll = async () => {
         setIsLoading(true);
         let packRes;
         try {
@@ -59,7 +59,7 @@ const SignatureDocument = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [clientId, navigate]);
+    };
 
     const onDrop = useCallback(
         async (acceptedFiles) => {
@@ -83,7 +83,7 @@ const SignatureDocument = () => {
                 setUploading(false);
             }
         },
-        [clientId, fetchAll],
+        [clientId],
     );
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({

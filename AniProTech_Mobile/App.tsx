@@ -60,6 +60,7 @@ export default function App() {
   const exchanging = useRef(false);
   const lastActivity = useRef(Date.now()), endingSession = useRef(false);
   const authenticating = useRef(false);
+  const wasBackgrounded = useRef(false);
   const updatePromptedFor=useRef("");
   async function checkPublishedUpdate(){
     if(Platform.OS!=="android"&&Platform.OS!=="ios")return;
@@ -117,15 +118,22 @@ export default function App() {
     } finally { authenticating.current = false; }
   }
   async function changeDeviceLock(enabled: boolean) {
-    if (!user) return;
-    if (enabled && (!await LocalAuthentication.hasHardwareAsync() || !await LocalAuthentication.isEnrolledAsync()))
-      throw new Error("Set up Face ID, Touch ID or fingerprint in your device settings first.");
-    const result=await LocalAuthentication.authenticateAsync({promptMessage:enabled?"Enable Caremonitor device lock":"Disable Caremonitor device lock",disableDeviceFallback:false});
-    if (!result.success) throw new Error("Device authentication was not completed.");
-    if (enabled) await SecureStore.setItemAsync(lockKey(user.id),"enabled");
-    else await SecureStore.deleteItemAsync(lockKey(user.id));
-    setDeviceLock(enabled);
-    setLocked(false);
+    if (!user || authenticating.current) return;
+    authenticating.current = true;
+    wasBackgrounded.current = false;
+    try {
+      if (enabled && (!await LocalAuthentication.hasHardwareAsync() || !await LocalAuthentication.isEnrolledAsync()))
+        throw new Error("Set up Face ID, Touch ID or fingerprint in your device settings first.");
+      const result=await LocalAuthentication.authenticateAsync({promptMessage:enabled?"Enable Caremonitor device lock":"Disable Caremonitor device lock",disableDeviceFallback:false});
+      if (!result.success) throw new Error("Device authentication was not completed.");
+      if (enabled) await SecureStore.setItemAsync(lockKey(user.id),"enabled");
+      else await SecureStore.deleteItemAsync(lockKey(user.id));
+      setDeviceLock(enabled);
+      setLocked(false);
+    } finally {
+      wasBackgrounded.current = false;
+      authenticating.current = false;
+    }
   }
   async function signIn(url: string) {
     if (exchanging.current) return;
@@ -295,11 +303,18 @@ export default function App() {
     };
     const heartbeat = setInterval(() => { void refresh(); }, 5 * 60 * 1000);
     const appState = AppState.addEventListener("change", (next) => {
-      if (next === "inactive" || next === "background") { if (deviceLock) setLocked(true); return; }
+      if (next === "background") {
+        if (authenticating.current) return;
+        wasBackgrounded.current = true;
+        if (deviceLock) setLocked(true);
+        return;
+      }
+      if (next === "inactive") return;
       if (next === "active") {
         lastActivity.current = 0;
         void checkPublishedUpdate();
-        if (deviceLock) void unlockDevice();
+        if (wasBackgrounded.current && deviceLock && !authenticating.current) void unlockDevice();
+        wasBackgrounded.current = false;
         void refresh();
       }
     });

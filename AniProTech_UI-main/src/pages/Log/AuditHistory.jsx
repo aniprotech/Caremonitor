@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { _get } from "../../utils/ApiService";
-import { Page, Field, ErrorBox } from "../../components/Operations/common";
-import { inputClass, londonToday, displayTime } from "../../components/Operations/common-utils";
+import { Page, Field, ErrorBox, inputClass, londonToday, displayTime } from "../../components/Operations/common";
 export default function LogIndex() {
     const [from, setFrom] = useState(() => londonToday().slice(0, 8) + "01"),
         [to, setTo] = useState(londonToday),

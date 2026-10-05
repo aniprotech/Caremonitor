@@ -21,8 +21,6 @@ The user selected both organisational/funder and individual billing contacts. Th
 - The client care record and the financial recipient are separate. A visit can supply an approved non-clinical quantity and amount for billing, but the recipient, address and email come from a finance contact authorised for that agency. The invoice must not expose care notes or diagnoses.
 - Bank linking is optional after the organisation has been approved and its owner has signed in. The owner chooses the bank and authorises account/transaction access through a provider consent flow. A sort code entered on the public registration form cannot reveal an account holder, account balance or transactions. Do not request online banking credentials or bank data from an unapproved applicant.
 - A bank connection belongs to one agency and must never be re-used across businesses. Imported payments can only match invoices in that agency, and only after a verified transaction is received and an auditable allocation is committed. A sort code by itself cannot establish that an invoice has been paid.
-- The Tink sandbox configuration uses client ID `d680f37de99e4997975d17ddca9fabb6`. Its client secret belongs only in the backend's private environment.
-- The sandbox Banking tab can start a UK Business Transactions Tink Link flow after `TINK_BANKING_ENABLED=true` is set on the backend. First register `https://backend.aniprotech.com/api/accounting/banking/tink/callback` as the exact redirect URI in Tink Console. A completed one-time consent imports a GBP account and transaction snapshot for the initiating active organisation; it stores no provider access token, does not refresh automatically, and never marks an invoice paid. Another consent is required for a later snapshot. The real Tink callback and product entitlement still require sandbox verification before this is treated as production banking.
 - An admin can keep the care client as the payer or set a default billing contact. Contact types include family, insurer, local authority, individual, organisation and other. A future invoice can override the default. Assigned contacts cannot be archived or turned into supplier-only contacts until a replacement payer is chosen.
 
 ## Domain and route plan
@@ -44,4 +42,5 @@ The user selected both organisational/funder and individual billing contacts. Th
 
 ## Current status
 
-Foundation contacts/catalogue, VAT registration settings and navigation were deployed in release `64b193f`. Contact payer types and per-client default payer selection are implemented. The Tink one-time sandbox import is implemented locally but has not been exercised with a real Tink consent callback. Quotes, accounting invoices, PDFs, email delivery, purchases, payment allocation, automatic bank refresh, reconciliation, ledger, VAT calculation and HMRC are **not implemented or verified**.
+
+Banking now uses Salt Edge exclusively. Invoice reconciliation supports imported payments, manual payments and reversals. Live provider approval remains separate from code implementation.

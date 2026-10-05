@@ -58,37 +58,61 @@ export async function initializeAccounting(db) {
     updated_by uuid NOT NULL REFERENCES users(id),
     updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
-  await db.query(`CREATE TABLE IF NOT EXISTS node_tink_connection_attempts (
+  await db.query(`CREATE TABLE IF NOT EXISTS node_salt_edge_customers (
+    agency_id uuid PRIMARY KEY,
+    customer_id text NOT NULL UNIQUE,
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await db.query(`CREATE TABLE IF NOT EXISTS node_salt_edge_connection_attempts (
     state_hash text PRIMARY KEY,
     agency_id uuid NOT NULL,
+    customer_id text NOT NULL,
     started_by uuid NOT NULL REFERENCES users(id),
     expires_at timestamptz NOT NULL,
     completed_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
-  await db.query(`CREATE TABLE IF NOT EXISTS node_tink_accounts (
-    agency_id uuid NOT NULL,
-    provider_account_id text NOT NULL,
-    name text NOT NULL DEFAULT '',
-    currency text NOT NULL DEFAULT '',
-    account_type text NOT NULL DEFAULT '',
-    last_four text NOT NULL DEFAULT '',
-    connected_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (agency_id,provider_account_id)
+  await db.query(`CREATE TABLE IF NOT EXISTS node_bank_transactions (
+    agency_id uuid NOT NULL,provider_transaction_id text NOT NULL,
+    provider_account_id text NOT NULL,booked_on date,
+    description text NOT NULL DEFAULT '',amount_pence bigint NOT NULL,
+    is_sandbox boolean NOT NULL DEFAULT true,
+    currency text NOT NULL DEFAULT 'GBP',imported_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(agency_id,provider_transaction_id)
   )`);
-  await db.query(`CREATE TABLE IF NOT EXISTS node_tink_transactions (
-    agency_id uuid NOT NULL,
+  await db.query(`ALTER TABLE node_bank_transactions ADD COLUMN IF NOT EXISTS
+    is_sandbox boolean NOT NULL DEFAULT true`);
+  await db.query(`CREATE INDEX IF NOT EXISTS node_bank_transactions_agency_date
+    ON node_bank_transactions(agency_id,booked_on DESC)`);
+  await db.query(`CREATE TABLE IF NOT EXISTS node_invoice_payments (
+    id uuid PRIMARY KEY,agency_id uuid NOT NULL,
+    invoice_id uuid NOT NULL REFERENCES node_finance_documents(id),
     provider_transaction_id text NOT NULL,
-    provider_account_id text NOT NULL,
-    booked_at date,
-    description text NOT NULL DEFAULT '',
-    amount_pence bigint NOT NULL,
-    currency text NOT NULL,
-    imported_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (agency_id,provider_transaction_id),
-    FOREIGN KEY (agency_id,provider_account_id) REFERENCES node_tink_accounts(agency_id,provider_account_id)
+    amount_pence bigint NOT NULL CHECK(amount_pence>0),
+    paid_on date,reference text NOT NULL DEFAULT '',
+    created_by uuid NOT NULL REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reversed_at timestamptz,reversed_by uuid REFERENCES users(id),
+    reversal_reason text,
+    FOREIGN KEY(agency_id,provider_transaction_id)
+      REFERENCES node_bank_transactions(agency_id,provider_transaction_id)
   )`);
-  await db.query(`CREATE INDEX IF NOT EXISTS node_tink_transactions_account_date
-    ON node_tink_transactions(agency_id,provider_account_id,booked_at DESC)`);
+  await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS node_invoice_payments_active_transaction
+    ON node_invoice_payments(agency_id,provider_transaction_id) WHERE reversed_at IS NULL`);
+  await db.query(`CREATE INDEX IF NOT EXISTS node_invoice_payments_invoice
+    ON node_invoice_payments(agency_id,invoice_id,created_at DESC)`);
+  await db.query(`CREATE TABLE IF NOT EXISTS node_manual_invoice_payments (
+    id uuid PRIMARY KEY,agency_id uuid NOT NULL,
+    invoice_id uuid NOT NULL REFERENCES node_finance_documents(id),
+    amount_pence bigint NOT NULL CHECK(amount_pence>0),
+    received_on date NOT NULL,
+    method text NOT NULL CHECK(method IN ('BANK_TRANSFER','CASH','CHEQUE','OTHER')),
+    reference text NOT NULL DEFAULT '',note text NOT NULL,
+    created_by uuid NOT NULL REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reversed_at timestamptz,reversed_by uuid REFERENCES users(id),
+    reversal_reason text
+  )`);
+  await db.query(`CREATE INDEX IF NOT EXISTS node_manual_invoice_payments_invoice
+    ON node_manual_invoice_payments(agency_id,invoice_id,created_at DESC)`);
 }

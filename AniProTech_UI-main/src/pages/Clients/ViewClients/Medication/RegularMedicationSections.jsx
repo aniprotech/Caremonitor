@@ -128,7 +128,7 @@ const RegularMedicationSections = ({
 
         setPastDoses(doses);
         setFieldValue("pastAdministrations", doses);
-    }, [values.firstDoseDate, values.firstDoseTime, values.timingPreference, values.selectedTimeSlots, values.exactTimes, values?.pastAdministrations, setFieldValue]);
+    }, [values.firstDoseDate, values.firstDoseTime, values.timingPreference, values.selectedTimeSlots, values.exactTimes]);
 
     const isPastDoseValid = pastDoses.every(
         (dose) =>

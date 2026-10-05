@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Platform, Pressable, Text, View } from "react-native";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import { Button, styles } from "./ui";
+import { Button, Input, styles } from "./ui";
 
 type PickerProps = {
   label: string;
@@ -57,6 +57,7 @@ function PickerField({ label, value, onChangeText, optional, minDate, mode }: Pi
       </Pressable>
       {optional && !!value && <Button title="Clear" variant="secondary" onPress={() => onChangeText("")} />}
     </View>
+    <Input label={`Or type ${label} (${mode === "date" ? "YYYY-MM-DD" : "HH:MM"})`} value={value} onChangeText={onChangeText} keyboardType="numbers-and-punctuation" maxLength={mode === "date" ? 10 : 5}/>
     {Platform.OS === "ios" && <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "#0008" }}>
         <View style={{ backgroundColor: "white", padding: 20, gap: 12, borderTopLeftRadius: 18, borderTopRightRadius: 18 }}>

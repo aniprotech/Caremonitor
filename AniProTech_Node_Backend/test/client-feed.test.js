@@ -115,15 +115,41 @@ test("Client profile and live feed", async (t) => {
           `/api/client-information/update/${client.id}`,
           {
             uniqueClientIdentifier: "TEST-001",
-            nhsNumber: "1234567890",
+            nhsNumber: "9991234500",
             localAuthorityId: "TEST-LA",
           },
         );
         assert.equal(r.status, 200);
         assert.equal(data(r).allergiesIntolerances, "Test only");
         assert.deepEqual(data(r).fundingOption, ["PRIVATE"]);
+        const identity = await call("post", `/api/client-information/update/${client.id}`, {
+          sex: "FEMALE", gender: "NON_BINARY", sexualOrientation: "Bisexual", religion: "Test belief",
+        });
+        assert.equal(identity.status, 200, identity.body.message);
+        assert.equal(data(identity).gender, "NON_BINARY");
+        assert.equal(data(identity).sexualOrientation, "Bisexual");
+        const invalid = await call("post", `/api/client-information/update/${client.id}`, { nhsNumber: "9991234501" });
+        assert.equal(invalid.status, 400);
       },
     );
+    await t.test("Admin-added clinical options are reusable across organisations without sharing client data", async () => {
+      const added = await call("post", "/api/clinical-catalog", { kind: "history", name: "Spinal injury rehabilitation" });
+      assert.equal(added.status, 201, added.body.message);
+      const sameAgency = await call("get", "/api/clinical-catalog?kind=history&q=spinal");
+      assert.ok(data(sameAgency).terms.some(term => term.name === "Spinal injury rehabilitation"));
+      const otherAgency = await call("get", "/api/clinical-catalog?kind=history&q=spinal", undefined, ot);
+      assert.ok(data(otherAgency).terms.some(term => term.name === "Spinal injury rehabilitation"));
+      const privateClient = await call("get", `/api/client/get-client/${client.id}`, undefined, ot);
+      assert.equal(privateClient.status, 404);
+      const addedReligion = await call("post", "/api/onboarding-options", { kind: "religion", name: "Test belief" });
+      assert.equal(addedReligion.status, 201);
+      const sharedReligion = await call("get", "/api/onboarding-options?kind=religion", undefined, ot);
+      assert.ok(data(sharedReligion).options.includes("Test belief"));
+      const carerAdd = await call("post", "/api/onboarding-options", { kind: "religion", name: "Private note" }, ct);
+      assert.equal(carerAdd.status, 403);
+      const invalid = await call("post", "/api/clinical-catalog", { kind: "history", name: "<script>" });
+      assert.equal(invalid.status, 400);
+    });
     await t.test(
       "Roster visits populate the feed and each visit detail collection",
       async () => {

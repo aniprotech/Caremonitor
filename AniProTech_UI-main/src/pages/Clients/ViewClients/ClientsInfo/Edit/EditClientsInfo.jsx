@@ -23,6 +23,7 @@ import clientsBaseInfoValidation from "../../../../../utils/validations/clients/
 import { fetchData } from "../../../../../utils/FetchData";
 import InnerLoader from "../../../../../components/Loader/InnerLoader";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
+import { normaliseNhsNumber } from "../../../../../utils/nhsNumber";
 
 const EditClientsInfo = () => {
     const [activeTab, setActiveTab] = useState(0);
@@ -113,9 +114,17 @@ const EditClientsInfo = () => {
     };
 
     const handleSubmit = async (values, { setSubmitting }) => {
+        const nhsNumber = normaliseNhsNumber(values.clinicalDetails.nhsNumber);
+        if (nhsNumber === null) {
+            showError("Enter a valid 10-digit NHS number with a correct check digit, or leave it blank.");
+            setActiveTab(1);
+            setSubmitting(false);
+            return;
+        }
         const payload = {
             ...values.personalIdentity,
             ...values.clinicalDetails,
+            nhsNumber: nhsNumber || null,
             ...values.futurePlanning,
             clientEmergencyContacts: values?.keyContacts?.clientEmergencyContacts?.map((contact) => ({
                 id: contact.id || undefined,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { _post } from "../../../../utils/ApiService";
+import { normaliseNhsNumber } from "../../../../utils/nhsNumber";
 export default function ClientIdentifiers({ data, onSaved }) {
     const { id } = useParams(),
         [editing, setEditing] = useState(false),
@@ -35,13 +36,14 @@ export default function ClientIdentifiers({ data, onSaved }) {
                     onSubmit={async (e) => {
                         e.preventDefault();
                         setError("");
-                        if (v.nhsNumber && !/^\d{10}$/.test(v.nhsNumber.replaceAll(" ", "")))
-                            return setError("Enter a 10-digit NHS number or leave it blank.");
+                        const nhsNumber = normaliseNhsNumber(v.nhsNumber);
+                        if (nhsNumber === null)
+                            return setError("Enter a valid 10-digit NHS number with a correct check digit, or leave it blank.");
                         setBusy(true);
                         try {
                             const r = await _post(`/api/client-information/update/${id}`, {
                                 ...v,
-                                nhsNumber: v.nhsNumber.replaceAll(" ", "") || null,
+                                nhsNumber: nhsNumber || null,
                             });
                             onSaved(r.data.results.data);
                             setEditing(false);
@@ -66,6 +68,7 @@ export default function ClientIdentifiers({ data, onSaved }) {
                             />
                         </label>
                     ))}
+                    <p className="text-sm text-gray-600">The NHS-number check confirms format and check digit only. Confirm the number belongs to this client against an NHS record before using it for care.</p>
                     {error && (
                         <p
                             role="alert"

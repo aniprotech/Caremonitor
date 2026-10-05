@@ -187,7 +187,7 @@ test("Mobile carer visit workflow is assigned, audited and tenant scoped", async
     await repo.save("ClientSettingsEntity",{user:client.id,qrCodeCheckIn:true,qrCodeId:clientQrCode});
     assert.equal((await call("get",`/api/mobile/visits/${outsideVisit}`)).body.results.data.qrCheckInRequired,true);
     const outsidePayload={clientEventId:randomUUID(),event:"CHECK_IN",latitude:52.2,longitude:-1.5,accuracy:9,locationExceptionReason:"Client requested meeting at a nearby venue"};
-    assert.equal((await call("post",`/api/mobile/visits/${outsideVisit}/attendance`,outsidePayload)).status,403);
+    assert.equal((await call("post",`/api/mobile/visits/${outsideVisit}/attendance`,outsidePayload)).status,400);
     assert.equal((await call("post",`/api/mobile/visits/${outsideVisit}/attendance`,{...outsidePayload,qrCode:randomUUID()})).status,403);
     const outside=await call("post",`/api/mobile/visits/${outsideVisit}/attendance`,{...outsidePayload,qrCode:clientQrCode});
     assert.equal(outside.status,200);
@@ -195,6 +195,19 @@ test("Mobile carer visit workflow is assigned, audited and tenant scoped", async
     assert.equal(outside.body.results.data.locationStatus,"OUTSIDE_RADIUS");
     assert.equal((await db.query("SELECT source FROM node_visit_attendance WHERE visit_id=$1",[outsideVisit])).rows[0].source,"QR");
     assert.match((await db.query("SELECT body FROM node_client_entries WHERE visit_id=$1 AND title='Caregiver arrived outside check-in radius'",[outsideVisit])).rows[0].body,/Client requested meeting/);
+    const qrExceptionVisit=randomUUID();
+    await db.query("INSERT INTO node_roster_visits(id,agency_id,client_id,staff_id,visit_date,start_time,end_time,title,notes,status,revision,created_by,updated_by) VALUES($1,$2,$3,$4,'2026-09-13','20:00','21:00','Missing QR test','','SCHEDULED',1,$4,$4)",[qrExceptionVisit,agency,client.id,carer.id]);
+    const exceptionPayload={clientEventId:randomUUID(),event:"CHECK_IN",latitude:52.1,longitude:-1.5,accuracy:8};
+    assert.equal((await call("post",`/api/mobile/visits/${qrExceptionVisit}/attendance`,exceptionPayload)).status,400);
+    assert.equal((await call("post",`/api/mobile/visits/${qrExceptionVisit}/attendance`,{...exceptionPayload,qrUnavailableReason:"Missing"})).status,400);
+    assert.equal((await call("post",`/api/mobile/visits/${qrExceptionVisit}/attendance`,{...exceptionPayload,qrCode:randomUUID(),qrUnavailableReason:"Printed code is missing from the home"})).status,403);
+    const qrException=await call("post",`/api/mobile/visits/${qrExceptionVisit}/attendance`,{...exceptionPayload,qrUnavailableReason:"Printed code is missing from the home"});
+    assert.equal(qrException.status,200,JSON.stringify(qrException.body));
+    assert.equal(qrException.body.results.data.qrVerified,false);
+    assert.equal(qrException.body.results.data.qrException,true);
+    assert.equal((await db.query("SELECT source FROM node_visit_attendance WHERE visit_id=$1",[qrExceptionVisit])).rows[0].source,"QR_EXCEPTION");
+    assert.equal((await db.query("SELECT body FROM node_client_entries WHERE visit_id=$1 AND category='QR_EXCEPTION'",[qrExceptionVisit])).rows[0].body,"Printed code is missing from the home");
+    assert.equal(sent.some((m)=>m.subject==="QR check-in exception requires review: Care Client"&&m.text.includes("Printed code is missing from the home")),true);
     const overrideVisit=randomUUID();await db.query("INSERT INTO node_roster_visits(id,agency_id,client_id,staff_id,visit_date,start_time,end_time,title,notes,status,revision,created_by,updated_by) VALUES($1,$2,$3,$4,'2026-09-13','09:00','10:00','Override test','','SCHEDULED',1,$4,$4)",[overrideVisit,agency,client.id,carer.id]);
     r=await call("post",`/api/mobile/visits/${overrideVisit}/attendance`,{clientEventId:randomUUID(),event:"CHECK_IN",latitude:52.1,longitude:-1.5,accuracy:8,qrCode:clientQrCode},adminToken);assert.equal(r.status,200);
     r=await call("post",`/api/mobile/visits/${overrideVisit}/attendance`,{clientEventId:randomUUID(),event:"CHECK_OUT",latitude:52.1,longitude:-1.5,accuracy:8,completionOverrideReason:"Emergency evacuation required early completion"},adminToken);assert.equal(r.status,200,JSON.stringify(r.body));

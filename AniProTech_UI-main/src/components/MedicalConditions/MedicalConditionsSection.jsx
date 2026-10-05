@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import MedicalConditionCard from './MedicalConditionCard';
@@ -19,9 +18,9 @@ const MedicalConditionsSection = ({
 
     useEffect(() => {
         fetchMedicalConditions();
-    }, [clientId, fetchMedicalConditions]);
+    }, [clientId]);
 
-    const fetchMedicalConditions = useCallback(async () => {
+    const fetchMedicalConditions = async () => {
         try {
             setLoading(true);
             // Replace with your actual API endpoint
@@ -34,7 +33,7 @@ const MedicalConditionsSection = ({
         } finally {
             setLoading(false);
         }
-    }, [clientId]);
+    };
 
     const handleEdit = (condition) => {
         setEditingCondition(condition);

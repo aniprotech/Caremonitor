@@ -34,16 +34,16 @@ const DateField = ({ name, label, value, onChange, onBlur, style, error, minDate
                     selected={parseSelectedDate(value)}
                     onChange={handleDateChange}
                     onBlur={onBlur}
-                    onChangeRaw={(event) => event?.preventDefault()}
                     dateFormat="dd-MM-yyyy"
+                    strictParsing
                     minDate={parseSelectedDate(minDate || min) || undefined}
                     showMonthDropdown
                     showYearDropdown
                     scrollableYearDropdown
-                    yearDropdownItemNumber={110}
+                    yearDropdownItemNumber={150}
                     disabled={disable}
                     className={` ${style === "width" ? "w-full" : "min-w-[160px] md:min-w-[180px]"} disabled:cursor-text cursor-pointer rounded border p-3 pr-10 text-sm ${error ? "border-red-500" : "border-gray-300"} focus:outline-none focus:ring-1`}
-                    placeholderText="dd-mm-yyyy"
+                    placeholderText="dd-mm-yyyy (type or choose)"
                     // shouldCloseOnSelect={!access} // Prevent closing on select if access is true
                 />
                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 transform text-customTextGrey">

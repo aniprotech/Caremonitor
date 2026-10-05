@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useState, useEffect, useRef } from "react";
 import ClientCareRecipientTable from "./ClientCareRecipientTable";
 import useScrollToTop from "../../../../hooks/useScrollToTop";
@@ -24,7 +23,7 @@ const ClientsIndex = () => {
 
     useScrollToTop();
 
-    const fetchCareTeamData = useCallback(async (searchValue = searchTerm) => {
+    const fetchCareTeamData = async (searchValue = searchTerm) => {
         setLoading(true);
         const payload = {
             filter: activeTab,
@@ -45,7 +44,7 @@ const ClientsIndex = () => {
             setLoading(false);
             setInitialLoading(false);
         }
-    }, [activeTab, clientId, page, pageSize, searchTerm]);
+    };
 
     const handleSearch = (value) => {
         setSearchTerm(value);
@@ -71,7 +70,7 @@ const ClientsIndex = () => {
         if (clientId) {
             fetchCareTeamData();
         }
-    }, [clientId, activeTab, page, pageSize, fetchCareTeamData]);
+    }, [clientId, activeTab, page, pageSize]);
 
     if (initialLoading && !data.length) {
         return (

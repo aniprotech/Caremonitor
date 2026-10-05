@@ -106,11 +106,14 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
   const assessmentLabel=(name)=>name.replaceAll("_"," ").replace(/([a-z])([A-Z])/g,"$1 $2").replace(/\s+/g," ");
   async function clientSafety(clientId) {
     const profile = await repo.one("ClientInformationEntity", { user: clientId });
-    return profile ? Object.fromEntries([
+    const values = profile ? await repo.serialize("ClientInformationEntity", profile, { children: true }) : null;
+    return values ? Object.fromEntries([
       "routinesAndPreferences", "allergiesIntolerances", "communicationOrInformationNeeds",
       "carerPreferences", "otherPreferences", "overallRiskLevel", "riskLevelDetails",
-      "dislikes", "medicalSupport", "staffingCrisisPlan",
-    ].map((key) => [key, typeof profile[key] === "string" ? profile[key].trim() : ""])) : {};
+      "dislikes", "medicalSupport", "staffingCrisisPlan", "hospitalName", "medicalHistory",
+      "gpPracticeName", "gpPracticeIdentifier", "gpName", "gpPhoneNumber", "pharmacyName", "pharmacyPhoneNumber",
+      "pharmacyAddress", "pharmacyPostCode", "pharmacyPhoneCode",
+    ].map((key) => [key, Array.isArray(values[key]) || typeof values[key] === "boolean" ? values[key] : typeof values[key] === "string" ? values[key].trim() : ""])) : {};
   }
   async function careOverview(clientId) {
     const sections = await Promise.all(Object.entries(carePlans).map(async ([key, name]) => {
@@ -276,7 +279,7 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
     const saved=await repo.save("ClientMedicationSchedulingEntity",{id:medication.id,timeBetweenDoses:String(b.timeBetweenDoses),timeBetweenUnit:b.timeBetweenUnit,maxDoseCount:String(b.maxDoseCount),maxDosePeriod:String(b.maxDosePeriod),maxDoseUnit:b.maxDoseUnit,updatedBy:req.user.id});
     return reply(res,{id:saved.id,timeBetweenDoses:saved.timeBetweenDoses,timeBetweenUnit:saved.timeBetweenUnit,maxDoseCount:saved.maxDoseCount,maxDosePeriod:saved.maxDosePeriod,maxDoseUnit:saved.maxDoseUnit},"PRN safety limits saved");
   });
-  async function notifyAdmins(req, visit, event, distanceMetres = null) {
+  async function notifyAdmins(req, visit, event, distanceMetres = null, details = "") {
     // An agency's active admins handle its visits. Its registered owner is the
     // fallback for an agency (including the platform owner's own agency) that
     // has no admins; platform-wide access never grants cross-agency mail.
@@ -292,7 +295,7 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
     if (!recipients.length) return;
     const caregiver = (await db.query("SELECT first_name||' '||last_name AS name FROM users WHERE id=$1 AND agency_id=$2", [req.user.id,req.user.agencyId])).rows[0]?.name || "Caregiver";
     const when = new Date().toLocaleString("en-GB", { timeZone:"Europe/London" });
-    const text = [`${event} for ${visit.clientName}.`, `Caregiver: ${caregiver}`, `Scheduled visit: ${visit.date}, ${visit.startTime}–${visit.endTime} (UK time)`, `Event time: ${when} (UK time)`, distanceMetres == null ? null : `Approximate distance from the client's configured address: ${distanceMetres} metres.`].filter(Boolean).join("\n");
+    const text = [`${event} for ${visit.clientName}.`, `Caregiver: ${caregiver}`, `Scheduled visit: ${visit.date}, ${visit.startTime}–${visit.endTime} (UK time)`, `Event time: ${when} (UK time)`, distanceMetres == null ? null : `Approximate distance from the client's configured address: ${distanceMetres} metres.`, details || null].filter(Boolean).join("\n");
     req.afterCommit?.push(() => mail.send({ to:recipients, subject:`${event}: ${visit.clientName}`, text }));
     req.afterCommit?.push(() => push.sendToUsers(req.user.agencyId,admins.filter((row)=>recipients.includes(row.email)).map((row)=>row.id),"A care event needs your attention. Open Caremonitor to review it."));
   }
@@ -469,20 +472,26 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
 
   route("POST", "/api/mobile/visits/:id/attendance", async (req, res) => {
     const v = await visit(req, true);
-    const parsed = z.object({ clientEventId:z.uuid(), event:z.enum(["CHECK_IN","CHECK_OUT"]), latitude:z.number().min(-90).max(90).nullable().default(null), longitude:z.number().min(-180).max(180).nullable().default(null), accuracy:z.number().nonnegative().max(10000).nullable().default(null), qrCode:z.uuid().optional(), completionOverrideReason:z.string().trim().max(1000).default(""), locationExceptionReason:z.string().trim().max(500).default("") }).safeParse(req.body);
+    const parsed = z.object({ clientEventId:z.uuid(), event:z.enum(["CHECK_IN","CHECK_OUT"]), latitude:z.number().min(-90).max(90).nullable().default(null), longitude:z.number().min(-180).max(180).nullable().default(null), accuracy:z.number().nonnegative().max(10000).nullable().default(null), qrCode:z.uuid().optional(), qrUnavailableReason:z.string().trim().max(500).default(""), completionOverrideReason:z.string().trim().max(1000).default(""), locationExceptionReason:z.string().trim().max(500).default("") }).safeParse(req.body);
     if (!parsed.success) fail(400, "Provide a valid attendance event and location");
     const b = parsed.data;
     const duplicate=(await db.query("SELECT event,distance_metres AS \"distanceMetres\",within_radius AS \"withinRadius\" FROM node_visit_attendance WHERE client_event_id=$1 AND actor_id=$2",[b.clientEventId,req.user.id])).rows[0];
     if(duplicate){if(duplicate.event!==b.event)fail(409,"This offline event identifier was already used");return reply(res,{status:duplicate.event==="CHECK_IN"?"IN_PROGRESS":"COMPLETED",distanceMetres:duplicate.distanceMetres,withinRadius:duplicate.withinRadius,locationStatus:duplicate.event!=="CHECK_IN"?"NOT_REQUIRED":duplicate.withinRadius===true?"VERIFIED":duplicate.withinRadius===false?"OUTSIDE_RADIUS":"CLIENT_LOCATION_NOT_CONFIGURED"},"Attendance already recorded");}
     if (b.event === "CHECK_IN" && v.status !== "SCHEDULED") fail(409, "Only a scheduled visit can be checked in");
     if (b.event === "CHECK_OUT" && v.status !== "IN_PROGRESS") fail(409, "Check in before checking out");
-    let qrVerified = false;
+    let qrVerified = false, qrException = false;
     if (b.event === "CHECK_IN") {
       const settings = await repo.one("ClientSettingsEntity", { user: v.client_id });
       if (settings?.qrCodeCheckIn) {
-        if (!settings.qrCodeId) fail(409, "Ask an administrator to generate the client's check-in QR code");
-        if (b.qrCode !== settings.qrCodeId) fail(403, "Scan the current QR code at the client's location before checking in");
-        qrVerified = true;
+        if (b.qrCode) {
+          if (!settings.qrCodeId || b.qrCode !== settings.qrCodeId) fail(403, "This QR code does not match the client's current code. Ask the office for help.");
+          qrVerified = true;
+        } else {
+          if (b.qrUnavailableReason.length < 10) fail(400, "Explain why the client's QR code is unavailable (at least 10 characters)");
+          qrException = true;
+        }
+      } else if (b.qrUnavailableReason) {
+        fail(400, "A QR exception is not needed for this client");
       }
     }
     if (b.event === "CHECK_OUT") {
@@ -504,18 +513,22 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
     if(address?.latitude!=null&&address?.longitude!=null&&(b.latitude==null||b.longitude==null)) fail(400,"Location is required for this client's attendance record");
     let distance=null,within=null;
     if(address?.latitude!=null&&address?.longitude!=null&&b.latitude!=null&&b.longitude!=null){const rad=(x)=>x*Math.PI/180,dLat=rad(b.latitude-address.latitude),dLon=rad(b.longitude-address.longitude),a=Math.sin(dLat/2)**2+Math.cos(rad(address.latitude))*Math.cos(rad(b.latitude))*Math.sin(dLon/2)**2;distance=Math.round(6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));within=distance<=Math.max(25,address.checkinRadius||150);}
-    await db.query("INSERT INTO node_visit_attendance(id,visit_id,actor_id,event,latitude,longitude,accuracy,distance_metres,within_radius,client_event_id,source) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [randomUUID(),v.id,req.user.id,b.event,b.latitude,b.longitude,b.accuracy,distance,within,b.clientEventId,qrVerified?"QR":"MOBILE"]);
+    await db.query("INSERT INTO node_visit_attendance(id,visit_id,actor_id,event,latitude,longitude,accuracy,distance_metres,within_radius,client_event_id,source) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [randomUUID(),v.id,req.user.id,b.event,b.latitude,b.longitude,b.accuracy,distance,within,b.clientEventId,qrException?"QR_EXCEPTION":qrVerified?"QR":"MOBILE"]);
     if (b.event === "CHECK_IN") await db.query("UPDATE node_roster_visits SET status='IN_PROGRESS',actual_start=COALESCE(actual_start,CURRENT_TIMESTAMP),revision=revision+1,updated_by=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[v.id,req.user.id]);
     else await db.query("UPDATE node_roster_visits SET status='COMPLETED',actual_end=COALESCE(actual_end,CURRENT_TIMESTAMP),revision=revision+1,updated_by=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[v.id,req.user.id]);
-    await visitEvent(db,v.id,req.user.id,b.event === "CHECK_IN" ? qrVerified?"Checked in with client QR verification":"Checked in using the mobile app" : "Checked out using the mobile app");
+    await visitEvent(db,v.id,req.user.id,b.event === "CHECK_IN" ? qrException?"Checked in with QR exception requiring office review":qrVerified?"Checked in with client QR verification":"Checked in using the mobile app" : "Checked out using the mobile app");
     let locationStatus="NOT_REQUIRED";
     if(b.event==="CHECK_IN"){
       locationStatus=within===true?"VERIFIED":within===false?"OUTSIDE_RADIUS":"CLIENT_LOCATION_NOT_CONFIGURED";
       const id=randomUUID(),title=within===true?"Caregiver arrived":within===false?"Caregiver arrived outside check-in radius":"Client location setup required",body=within===true?`Location verified${distance!=null?` (${distance} m)`:""}`:within===false?`Attendance was captured ${distance} m from the configured client location.${b.locationExceptionReason?` Caregiver explanation: ${b.locationExceptionReason}`:" Caregiver explanation was not provided."}`:"Attendance was captured, but this client's primary address does not have map coordinates. Add latitude, longitude and a check-in radius in the client address.";
       await db.query("INSERT INTO node_client_entries(id,agency_id,client_id,visit_id,kind,title,body,category,status,created_by,updated_by) VALUES($1,$2,$3,$4,$5,$6,$7,'ATTENDANCE',$8,$9,$9)",[id,req.user.agencyId,v.client_id,v.id,within===true?'NOTE':'ALERT',title,body,within===true?'RECORDED':'OPEN',req.user.id]);
+      if(qrException){
+        await db.query("INSERT INTO node_client_entries(id,agency_id,client_id,visit_id,kind,title,body,category,status,created_by,updated_by) VALUES($1,$2,$3,$4,'ALERT','QR code unavailable at check-in',$5,'QR_EXCEPTION','OPEN',$6,$6)",[randomUUID(),req.user.agencyId,v.client_id,v.id,b.qrUnavailableReason,req.user.id]);
+        await notifyAdmins(req,v,"QR check-in exception requires review",distance,`Caregiver explanation: ${b.qrUnavailableReason}`);
+      }
     }
     await notifyAdmins(req,v,b.event === "CHECK_IN" ? "Caregiver checked in" : "Caregiver checked out",distance);
-    return reply(res,{ status:b.event === "CHECK_IN" ? "IN_PROGRESS" : "COMPLETED",distanceMetres:distance,withinRadius:within,locationStatus,qrVerified },b.event === "CHECK_IN" ? "Checked in" : "Checked out");
+    return reply(res,{ status:b.event === "CHECK_IN" ? "IN_PROGRESS" : "COMPLETED",distanceMetres:distance,withinRadius:within,locationStatus,qrVerified,qrException },b.event === "CHECK_IN" ? "Checked in" : "Checked out");
   });
 
   route("POST", "/api/mobile/visits/:id/proximity", async (req,res) => {

@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useParams } from "react-router-dom";
 import CareCircleTable from "./CareCircleTable";
@@ -14,7 +13,7 @@ const CareCircleIndex = () => {
     const [accessLogs, setAccessLogs] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const fetchCareCircleData = useCallback(() => {
+    const fetchCareCircleData = () => {
         setLoading(true);
 
         fetchData(
@@ -48,11 +47,11 @@ const CareCircleIndex = () => {
             setLoading,
             null,
         );
-    }, [id]);
+    };
 
     useEffect(() => {
         fetchCareCircleData();
-    }, [fetchCareCircleData, id]);
+    }, [id]);
 
     const getActionText = (action) => {
         switch (action) {

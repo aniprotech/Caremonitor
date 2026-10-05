@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { _get, _post, _put } from "../../utils/ApiService";
+import PaymentReconciliation from "./PaymentReconciliation";
 
 const emptyContact = { displayName: "", legalName: "", contactPerson: "", email: "", phone: "", billingAddress: "", companyNumber: "", vatNumber: "", role: "CUSTOMER", payerType: "OTHER", paymentTermsDays: 30 };
 const emptyItem = { name: "", description: "", unit: "each", unitPricePence: 0 };
@@ -8,7 +9,10 @@ const read = async (path) => (await _get(path)).data.results.data;
 const money = (pence) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format((pence || 0) / 100);
 
 export default function AccountingIndex() {
-  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("section")==="banking"?"banking":"overview"), [summary, setSummary] = useState(null);
+  const [tab, setTab] = useState(() => {
+    const section = new URLSearchParams(window.location.search).get("section");
+    return ["banking", "reconciliation"].includes(section) ? section : "overview";
+  }), [summary, setSummary] = useState(null);
   const [contacts, setContacts] = useState([]), [items, setItems] = useState([]);
   const [clientPayers, setClientPayers] = useState([]), [payerDrafts, setPayerDrafts] = useState({});
   const [contact, setContact] = useState(emptyContact), [item, setItem] = useState(emptyItem);
@@ -18,10 +22,17 @@ export default function AccountingIndex() {
   const [banking, setBanking] = useState(null);
   const loadBanking = async () => setBanking(await read("/api/accounting/banking"));
   useEffect(() => { if (tab !== "banking") return; loadBanking().catch(e => setError(e.response?.data?.message || "Banking could not be loaded")); }, [tab]);
-  useEffect(() => { const status = new URLSearchParams(window.location.search).get("bank"); if (status) { setNotice(status === "connected" ? "Bank data imported. Review the accounts and transactions below." : "Bank connection did not complete. Please try again."); window.history.replaceState({},"","/admin/accounting?section=banking"); } }, []);
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get("bank");
+    if (!status) return;
+    if (status === "connected") setNotice("Bank connection completed. Review the accounts and transactions below.");
+    else if (status === "approval_required") setError("Salt Edge has not approved this account for real bank connections yet. You can test with a Fake Bank while approval is pending.");
+    else setError("Bank connection did not complete. If you cancelled the bank screen, try again; otherwise contact your administrator.");
+    window.history.replaceState({}, "", "/admin/accounting?section=banking");
+  }, []);
   const connectBank = async () => {
     setBusy(true); setError("");
-    try { const result = await _post("/api/accounting/banking/tink/start",{},{withCredentials:true}); window.location.assign(result.data.results.data.url); }
+    try { const result = await _post("/api/accounting/banking/salt-edge/start",{},{withCredentials:true}); window.location.assign(result.data.results.data.url); }
     catch (e) { setError(e.response?.data?.message || "Unable to start bank connection"); setBusy(false); }
   };
   const refresh = async () => {
@@ -73,9 +84,9 @@ export default function AccountingIndex() {
   };
   return <main className="min-h-screen bg-[#f5faff] p-4 text-[#10233f] md:p-8">
     <div className="mx-auto max-w-7xl">
-      <header className="mb-6"><h1 className="text-3xl font-bold">Accounting</h1><p className="mt-2 text-slate-600">Billing contacts and service prices for your organisation.</p></header>
+      <header className="mb-6"><h1 className="text-3xl font-bold">Accounting</h1><p className="mt-2 text-slate-600">Manage billing contacts, service prices, bank transactions and invoice payments for your organisation.</p></header>
       <nav aria-label="Accounting sections" className="mb-6 flex flex-wrap gap-2">
-        {[["overview","Overview"],["contacts","Contacts"],["payers","Client payers"],["catalogue","Products and services"],["tax","VAT settings"],["banking","Banking"]].map(([key,label]) =>
+        {[["overview","Overview"],["contacts","Contacts"],["payers","Client payers"],["catalogue","Products and services"],["tax","VAT settings"],["banking","Banking"],["reconciliation","Reconcile payments"]].map(([key,label]) =>
           <button key={key} type="button" aria-current={tab===key?"page":undefined} onClick={() => { setTab(key); setEditing(null); setContact(emptyContact); setItem(emptyItem); setPriceInput("0.00"); setError(""); }}
             className={`rounded-lg border px-4 py-2 font-semibold transition ${tab===key?"border-[#0b294a] bg-[#0b294a] text-white":"border-slate-300 bg-white text-[#0b294a] hover:bg-cyan-50"}`}>{label}</button>)}</nav>
       {error && <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>}
@@ -111,7 +122,8 @@ export default function AccountingIndex() {
           <button disabled={busy} type="submit" className="w-fit rounded-lg bg-[#0b294a] px-4 py-2 font-semibold text-white hover:bg-[#14517a] disabled:opacity-50">Save VAT details</button>
         </form><p className="mt-5 text-sm text-slate-600">Before VAT can be applied, the registration must be checked and the accounting scheme and tax treatment agreed for each service.</p>
       </section>}
-      {tab === "banking" && <div className="space-y-5"><section className="rounded-xl border bg-white p-6"><h2 className="text-xl font-semibold">Business bank accounts</h2><p className="mt-2 text-sm text-slate-600">Connect a business account with Tink’s secure consent screen. A sort code alone cannot provide transactions. Imported bank entries are for review and do not mark invoices as paid.</p><button type="button" disabled={busy || !banking?.configured} onClick={connectBank} className="mt-4 rounded-lg bg-[#0b294a] px-4 py-2 font-semibold text-white hover:bg-[#14517a] disabled:opacity-50">Connect bank with Tink</button>{banking && !banking.configured && <p className="mt-3 text-sm text-amber-800">The Tink sandbox is not configured on the backend.</p>}</section>
+      {tab === "reconciliation" && <PaymentReconciliation />}
+      {tab === "banking" && <div className="space-y-5"><section className="rounded-xl border bg-white p-6"><h2 className="text-xl font-semibold">Business bank accounts</h2><p className="mt-2 text-sm text-slate-600">Connect an account that your organisation is authorised to share using Salt Edge. A sort code alone cannot provide transactions. Reconcile imported payments against invoices in the Reconcile payments tab.</p><button type="button" disabled={busy || !banking?.configured || banking?.provider !== "salt-edge"} onClick={connectBank} className="mt-4 rounded-lg bg-[#0b294a] px-4 py-2 font-semibold text-white hover:bg-[#14517a] disabled:opacity-50">Connect bank with Salt Edge</button><button type="button" disabled={busy} onClick={() => loadBanking().catch(e => setError(e.response?.data?.message || "Banking could not be loaded"))} className="ml-3 rounded-lg border px-4 py-2 font-semibold text-[#0b294a] disabled:opacity-50">Refresh bank data</button>{banking && !banking.configured && <p className="mt-3 text-sm text-amber-800">Salt Edge is not configured on the backend.</p>}{banking?.connections?.length > 0 && <p className="mt-3 text-sm text-slate-600">{banking.connections.map(connection => `${connection.name || "Bank"}: ${connection.status}`).join(" · ")}</p>}</section>
         <section className="rounded-xl border bg-white p-6"><h2 className="text-xl font-semibold">Connected accounts</h2>{banking?.accounts.length ? <div className="mt-3 space-y-2">{banking.accounts.map(account => <div key={account.id} className="rounded-lg border p-3"><strong>{account.name || "Bank account"}</strong><span className="ml-3 text-slate-600">{account.accountType} {account.lastFour && `•••• ${account.lastFour}`} {account.currency}</span></div>)}</div> : <p className="mt-3 text-slate-600">No accounts imported yet.</p>}</section>
         <section className="rounded-xl border bg-white p-6"><h2 className="text-xl font-semibold">Recent bank transactions</h2><div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-2">Date</th><th className="p-2">Description</th><th className="p-2">Amount</th></tr></thead><tbody>{banking?.transactions.map(tx => <tr key={tx.id} className="border-b"><td className="p-2">{tx.date || "—"}</td><td className="p-2">{tx.description || "Bank transaction"}</td><td className="p-2">{money(Number(tx.amountPence))}</td></tr>)}</tbody></table>{!banking?.transactions.length && <p className="p-3 text-slate-600">No GBP transactions imported yet.</p>}</div></section></div>}
     </div>

@@ -1,0 +1,17 @@
+Contains public sector information licensed under the Open Government Licence v3.0.
+https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+
+dm+d: NHS Business Services Authority, distributed by NHS TRUD.
+Release 10.0.0, 5 October 2026. Source archive SHA-256:
+2cf7a678532427317b934437430beb7032fa8c4ef187abb4471f05ddfe4b8170
+https://isd.digital.nhs.uk/trud/users/guest/filters/0/categories/6/items/24/releases
+The snapshot contains 188,240 valid VMP and AMP names and identifiers.
+These include devices; they are reference terms, not prescribing guidance.
+
+Scottish hospital reference: Public Health Scotland, retrieved 5 October 2026.
+https://www.opendata.nhs.scot/
+244 records. Inclusion does not establish current service availability.
+
+Snapshots are imported atomically at backend startup. Identical content is skipped.
+Refresh using scripts/reference-snapshot.py and a verified source release.
+No unattended download schedule is configured.

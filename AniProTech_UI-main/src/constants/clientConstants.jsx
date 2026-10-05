@@ -300,6 +300,25 @@ export const clientsSexOptions = [
     { label: "Rather not say", value: "NOT_SAY" },
 ];
 
+export const clientsGenderOptions = [
+    { label: "Woman", value: "FEMALE" },
+    { label: "Man", value: "MALE" },
+    { label: "Non-binary", value: "NON_BINARY" },
+    { label: "Questioning or unsure", value: "QUESTIONING" },
+    { label: "Prefer not to say", value: "NOT_SAY" },
+];
+
+export const clientsSexualOrientationOptions = [
+    { label: "Heterosexual (straight)", value: "Heterosexual (straight)" },
+    { label: "Gay or lesbian", value: "Gay or lesbian" },
+    { label: "Bisexual", value: "Bisexual" },
+    { label: "Pansexual", value: "Pansexual" },
+    { label: "Asexual", value: "Asexual" },
+    { label: "Queer", value: "Queer" },
+    { label: "Questioning or unsure", value: "Questioning or unsure" },
+    { label: "Prefer not to say", value: "Prefer not to say" },
+];
+
 export const clientsCommunicationSupportOptions = [
     { label: "Requires Specific Contact Method", value: "SPECIFIC_CONTACT_METHOD" },
     { label: "Requires Specific Information Format", value: "SPECIFIC_INFORMATION_FORMAT" },

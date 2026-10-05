@@ -10107,8 +10107,21 @@
         {
           "name": "nhsNumber",
           "javaName": "nhsNumber",
-          "type": "Long",
+          "type": "String",
           "column": "nhs_number",
+          "inverse": false,
+          "hidden": false,
+          "audit": false,
+          "json": false,
+          "ordinal": false,
+          "required": false,
+          "unique": false
+        },
+        {
+          "name": "hospitalName",
+          "javaName": "hospitalName",
+          "type": "String",
+          "column": "hospital_name",
           "inverse": false,
           "hidden": false,
           "audit": false,
@@ -10203,7 +10216,7 @@
         {
           "name": "gpPhoneNumber",
           "javaName": "gpPhoneNumber",
-          "type": "Long",
+          "type": "String",
           "column": "gp_phone_number",
           "inverse": false,
           "hidden": false,
@@ -10229,7 +10242,7 @@
         {
           "name": "pharmacyPhoneNumber",
           "javaName": "pharmacyPhoneNumber",
-          "type": "Long",
+          "type": "String",
           "column": "pharmacy_phone_number",
           "inverse": false,
           "hidden": false,

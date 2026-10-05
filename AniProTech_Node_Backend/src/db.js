@@ -1,3 +1,4 @@
+import { initializeReferenceData } from "./reference-data.js";
 import { initializeInboxAlerts } from './inbox-alert-schema.js';
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PGlite } from "@electric-sql/pglite";
@@ -15,12 +16,18 @@ import { initializeMobileCare } from "./mobile-care-schema.js";
 import { initializeRegistration } from "./registration-schema.js";
 import { initializeSecurity } from "./security-schema.js";
 import { initializeGovernance } from "./governance-schema.js";
+import { initializeSharedOptions } from "./shared-options-schema.js";
 export const { entities, enums } = JSON.parse(
   readFileSync(new URL("./models/schema.json", import.meta.url)),
 );
 entities.UserEntity.fields.push({name:"middleName",javaName:"middleName",column:"middle_name",type:"String"});
 for (const [name,column,type] of [['latitude','latitude','Double'],['longitude','longitude','Double'],['checkinRadius','checkin_radius','Integer']]) entities.UserPrimaryAddressEntity.fields.push({name,javaName:name,column,type});
 for (const field of entities.UserEntity.fields) if(['primaryPhone','secondaryPhone'].includes(field.name)) field.type='String';
+// Gender identity includes non-binary and locally defined terms; the stored
+// column is text, while sex assigned at birth remains a separate coded field.
+const genderField = entities.ClientInformationEntity.fields.find(field => field.name === "gender");
+genderField.type = "String";
+genderField.enumName = null;
 for(const [entity,fields] of Object.entries({
   ClientTaskCategoryEntity:[['agencyId','agency_id','UUID'],['createdBy','created_by','UUID']],
   ClientTaskEntity:[['agencyId','agency_id','UUID'],['createdBy','created_by','UUID'],['archived','archived','Boolean'],['revision','revision','Integer']],
@@ -138,6 +145,13 @@ export async function initializeSchema(db) {
           `CREATE INDEX IF NOT EXISTS ${quote((c.table + "_owner_idx").slice(0, 63))} ON ${quote(c.table)} (${quote(c.owner)})`,
         );
       }
+    for (const column of ["nhs_number", "gp_phone_number", "pharmacy_phone_number"]) {
+      const current = (await db.query("SELECT data_type FROM information_schema.columns WHERE table_name='client_information' AND column_name=$1", [column])).rows[0]?.data_type;
+      if (current !== "text") await db.query(`ALTER TABLE client_information ALTER COLUMN ${quote(column)} TYPE text USING ${quote(column)}::text`);
+    }
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS hospital_name text");
+    await db.query("CREATE TABLE IF NOT EXISTS node_clinical_terms (id uuid PRIMARY KEY, agency_id uuid NOT NULL, kind text NOT NULL CHECK(kind IN ('history','medicine','hospital')), name text NOT NULL, created_by uuid NOT NULL, created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+    await db.query("CREATE UNIQUE INDEX IF NOT EXISTS node_clinical_terms_unique ON node_clinical_terms (agency_id,kind,lower(name))");
     await db.query(
       "CREATE TABLE IF NOT EXISTS node_login_links (id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, secret_hash text NOT NULL, expires_at timestamp NOT NULL, used_at timestamp)",
     );
@@ -166,6 +180,8 @@ export async function initializeSchema(db) {
       await initializeRegistration(db);
       await initializeSecurity(db);
       await initializeGovernance(db);
+      await initializeSharedOptions(db);
+      await initializeReferenceData(db);
   });
 }
 
