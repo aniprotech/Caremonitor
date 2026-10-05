@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { searchNorthernIrelandHospitals, searchOdsHospitals, searchScottishHospitals } from "../src/services/clinical-catalog.js";
+import { searchNorthernIrelandHospitals, searchOdsHospitals, searchScottishHospitals, suggestHistoryTerms } from "../src/services/clinical-catalog.js";
 import { searchDmdMedicines } from "../src/services/nhs-terminology.js";
 
 test("hospital search finds coded NHS sites even when their names omit hospital", async () => {
@@ -30,6 +30,12 @@ test("Northern Ireland hospital names remain available when remote directories f
   assert.deepEqual(searchNorthernIrelandHospitals("Altnagelvin"), [
     { name: "Altnagelvin Hospital", source: "HSCNI directory", postcode: "BT47 6SB" },
   ]);
+});
+
+test("condition suggestions include standard terms and tolerate simple spelling errors", () => {
+  assert.ok(suggestHistoryTerms("Learning Disability").includes("Learning disability"));
+  assert.ok(suggestHistoryTerms("Lerning disabilty").includes("Learning disability"));
+  assert.ok(suggestHistoryTerms("autism").includes("Autism spectrum condition"));
 });
 
 test("dm+d search uses server-side OAuth and returns coded medicine names", async () => {

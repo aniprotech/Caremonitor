@@ -4,7 +4,45 @@ import { searchDmdMedicines } from "./nhs-terminology.js";
 import { addSharedOption } from "./shared-options.js";
 
 const kinds = new Set(["history", "medicine", "hospital"]);
-const builtInHistory = ["Spinal cord injury", "Cervical spinal cord injury", "Thoracic spinal cord injury", "Lumbar spinal cord injury", "Paraplegia", "Tetraplegia", "Stroke", "Dementia", "Diabetes", "Epilepsy", "Parkinson's disease", "Chronic obstructive pulmonary disease", "Heart failure", "Falls risk", "Pressure injury"];
+// A short, neutral reference list for recording care-relevant history. These
+// are suggestions only: selecting one does not diagnose the client.
+const builtInHistory = [
+  "Learning disability", "Autism spectrum condition", "Attention deficit hyperactivity disorder",
+  "Spinal cord injury", "Cervical spinal cord injury", "Thoracic spinal cord injury", "Lumbar spinal cord injury",
+  "Paraplegia", "Tetraplegia", "Stroke", "Dementia", "Diabetes", "Epilepsy", "Parkinson's disease",
+  "Chronic obstructive pulmonary disease", "Asthma", "Heart failure", "Coronary heart disease",
+  "Chronic kidney disease", "Multiple sclerosis", "Motor neurone disease", "Cerebral palsy",
+  "Acquired brain injury", "Visual impairment", "Hearing impairment", "Falls risk", "Pressure injury",
+  "Anxiety", "Depression", "Schizophrenia", "Bipolar disorder",
+];
+
+const normaliseTerm = (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const editDistance = (left, right) => {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let row = 1; row <= left.length; row++) {
+    let diagonal = previous[0]; previous[0] = row;
+    for (let column = 1; column <= right.length; column++) {
+      const above = previous[column];
+      previous[column] = Math.min(previous[column] + 1, previous[column - 1] + 1, diagonal + (left[row - 1] === right[column - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return previous[right.length];
+};
+
+export function suggestHistoryTerms(query) {
+  const needle = normaliseTerm(query);
+  if (!needle) return builtInHistory.slice(0, 12);
+  return builtInHistory.map(name => {
+    const value = normaliseTerm(name);
+    const direct = value.includes(needle) || needle.includes(value);
+    const distance = editDistance(needle, value);
+    const allowedDistance = needle.length > 10 ? 4 : needle.length > 6 ? 2 : 1;
+    return { name, direct, distance, allowedDistance };
+  }).filter(item => item.direct || item.distance <= item.allowedDistance)
+    .sort((left, right) => Number(right.direct) - Number(left.direct) || left.distance - right.distance || left.name.localeCompare(right.name))
+    .slice(0, 12).map(({ name }) => name);
+}
 
 const scottishHospitalsResource = "c698f450-eeed-41a0-88f7-c1e40a568acc";
 const hospitalSiteRoles = "RO198,RO149,RO176,RO150";
@@ -80,7 +118,7 @@ export function registerClinicalCatalog({ db, auth }, route) {
     const choices = [...reference, ...shared.map(row => ({ name: row.name, source: "Shared option" }))];
     for (const row of rows) if (!choices.some(choice => choice.name.toLowerCase() === row.name.toLowerCase()))
       choices.push({ name: row.name, source: "Organisation" });
-    if (kind === "history") for (const name of builtInHistory) if ((name.toLowerCase().includes(query.toLowerCase()) || (/spinal\s+injury/i.test(query) && /spinal cord injury/i.test(name))) && !choices.some(c => c.name.toLowerCase() === name.toLowerCase())) choices.push({ name, source: "Common term" });
+    if (kind === "history") for (const name of suggestHistoryTerms(query)) if (!choices.some(c => c.name.toLowerCase() === name.toLowerCase())) choices.push({ name, source: "Suggested term" });
     if (kind === "hospital" && query.length >= 3) {
       const results = await Promise.allSettled([searchOdsHospitals(query), searchScottishHospitals(query)]);
       for (const record of searchNorthernIrelandHospitals(query).slice(0, 9)) {
