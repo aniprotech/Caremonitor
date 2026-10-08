@@ -80,7 +80,6 @@ const MedicationIndex = () => {
             {/* Add Medication Search */}
             <div className="mb-6 rounded-md border border-gray-300 bg-white p-3 md:p-4 xl:p-8">
                 <h2 className="poppins-medium mb-2 text-lg text-customBlack">Add medication</h2>
-                <p className="text-sm text-customGrey1">Search medicine names or add one from the prescription. NHS dm+d results appear when the terminology connection is configured. Confirm the exact product, strength and directions against the dispensing label before scheduling.</p>
                 <div className="mt-4">
                     <ClinicalAutocomplete kind="medicine" label="Medicine name" value="" onChange={handleCategorySelect}/>
                 </div>
