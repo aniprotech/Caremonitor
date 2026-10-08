@@ -107,7 +107,13 @@ const ClientsInfoSection = ({ data, sectionId, componentName }) => {
                     type="button"
                     className="flex items-center text-base font-medium text-customTextNavy hover:underline"
                     onClick={() => {
-                        navigate(`/admin/clients/${id}/client-info/edit`, {
+                        const tab = {
+                            EditClinicalDetails: "clinical-details",
+                            EditClientKeyContact: "key-contacts",
+                            EditFuturePlanning: "future-planning",
+                            EditClientAgencyAdmin: "agency-admin",
+                        }[componentName];
+                        navigate(`/admin/clients/${id}/client-info/edit${tab ? `?tab=${tab}` : ""}`, {
                             state: { data },
                         });
                     }}

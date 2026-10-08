@@ -19,7 +19,13 @@ const input = z.object({
   title: z.string().trim().min(1).max(160),
   notes: z.string().max(4000).default(""),
   status: z.enum(["DRAFT", "SCHEDULED"]),
+  // Legacy clients send repeatWeeks. New schedules use an explicit recurrence.
   repeatWeeks: z.number().int().min(1).max(12).default(1),
+  frequency: z.enum(["DAILY", "WEEKLY", "CUSTOM"]).optional(),
+  selectedDays: z.array(z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"])).max(7).default([]),
+  repeatEvery: z.number().int().min(1).max(12).default(1),
+  repeatUnit: z.enum(["DAYS", "WEEKS"]).default("WEEKS"),
+  endDate: z.string().refine(dateOnly).nullable().optional(),
   requiredStaff: z.number().int().min(1).max(4).default(1),
   openShift: z.boolean().default(false),
   revision: z.number().int().positive().optional(),
@@ -257,12 +263,32 @@ export function registerRoster(ctx, route) {
     const v = parsed.data;
     await lock(req);
     const visits = [];
-    for (let week = 0; week < v.repeatWeeks; week++) {
+    const weekdays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+    // "Never" is intentionally bounded: visits are concrete care records, so we create
+    // a rolling 12-week horizon rather than an unbounded number of rows.
+    const horizon = v.endDate || new Date(Date.parse(v.date) + 83 * dayMs).toISOString().slice(0, 10);
+    const dates = [];
+    if (!v.frequency) {
+      for (let week = 0; week < v.repeatWeeks; week++) dates.push(new Date(Date.parse(v.date) + week * 7 * dayMs).toISOString().slice(0, 10));
+    } else {
+      for (let time = Date.parse(v.date); time <= Date.parse(horizon); time += dayMs) {
+        const date = new Date(time).toISOString().slice(0, 10);
+        const offset = Math.round((time - Date.parse(v.date)) / dayMs);
+        const weekday = weekdays[new Date(time).getUTCDay()];
+        const selected = v.selectedDays.length ? v.selectedDays : [weekdays[new Date(Date.parse(v.date)).getUTCDay()]];
+        const matches = v.frequency === "DAILY"
+          ? offset % v.repeatEvery === 0
+          : v.repeatUnit === "DAYS"
+            ? offset % v.repeatEvery === 0
+            : Math.floor(offset / 7) % v.repeatEvery === 0 && selected.includes(weekday);
+        if (matches) dates.push(date);
+      }
+    }
+    if (!dates.length || dates.length > 90) fail(400, "Choose a schedule that creates between 1 and 90 visits");
+    for (const date of dates) {
       const visit = {
         ...v,
-        date: new Date(Date.parse(v.date) + week * 7 * dayMs)
-          .toISOString()
-          .slice(0, 10),
+        date,
       };
       const callGroupId=v.requiredStaff>1?randomUUID():null;
       await check(req,{...visit,callGroupId});

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Formik, Form } from "formik";
 import clsx from "clsx";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import EditPersonalIdentity from "./EditPersonalIdentity";
 import EditClinicalDetails from "./EditClinicalDetails";
 import EditFuturePlanning from "./EditFuturePlanning";
@@ -25,8 +25,16 @@ import InnerLoader from "../../../../../components/Loader/InnerLoader";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
 import { normaliseNhsNumber } from "../../../../../utils/nhsNumber";
 
+const clientInfoTabs = [
+    { name: "Personal Identity", component: EditPersonalIdentity },
+    { name: "Clinical Details", component: EditClinicalDetails },
+    { name: "Key Contacts", component: EditKeyContacts },
+    { name: "Future Planning", component: EditFuturePlanning },
+    { name: "Agency Admin", component: EditAgencyAdmin },
+];
+
 const EditClientsInfo = () => {
-    const [activeTab, setActiveTab] = useState(0);
+    const [searchParams] = useSearchParams();
     const tabPanelRef = useRef(null);
     const [data, setData] = useState({});
     const [loading, setLoading] = useState(false);
@@ -47,13 +55,16 @@ const EditClientsInfo = () => {
         "Agency Admin": "agencyAdmin",
     };
 
-    const tabs = [
-        { name: "Personal Identity", component: EditPersonalIdentity },
-        { name: "Clinical Details", component: EditClinicalDetails },
-        { name: "Key Contacts", component: EditKeyContacts },
-        { name: "Future Planning", component: EditFuturePlanning },
-        { name: "Agency Admin", component: EditAgencyAdmin },
-    ];
+    const requestedTab = searchParams.get("tab");
+    const [activeTab, setActiveTab] = useState(() => {
+        const index = clientInfoTabs.findIndex((tab) => tab.name.toLowerCase().replace(/\s+/g, "-") === requestedTab);
+        return index >= 0 ? index : 0;
+    });
+
+    useEffect(() => {
+        const index = clientInfoTabs.findIndex((tab) => tab.name.toLowerCase().replace(/\s+/g, "-") === requestedTab);
+        if (index >= 0) setActiveTab(index);
+    }, [requestedTab]);
 
     const initialValues = {
         personalIdentity: personalIdentityData(data),
@@ -181,7 +192,7 @@ const EditClientsInfo = () => {
                     <div className="sticky top-14 z-30 border-b bg-white pt-7 md:px-3">
                         <div className="relative border-b border-gray-300">
                             <div className="flex w-52 space-x-6 overflow-x-auto overflow-y-hidden md:w-full md:space-x-12">
-                                {tabs.map((tab, index) => (
+                                {clientInfoTabs.map((tab, index) => (
                                     <button
                                         key={index}
                                         type="button"
@@ -207,7 +218,7 @@ const EditClientsInfo = () => {
                             className="flex-1 py-6 md:px-4"
                             ref={tabPanelRef}
                         >
-                            {tabs.map((tab, index) =>
+                            {clientInfoTabs.map((tab, index) =>
                                 activeTab === index ? (
                                     <div
                                         key={tab.name}

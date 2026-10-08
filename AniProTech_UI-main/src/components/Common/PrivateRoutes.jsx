@@ -7,7 +7,7 @@ import DotLoader from "../Loader/DotLoader";
 import useAuthStore from "../../stores/authStore";
 import { encryptData } from "../../utils/cryptoHelpers";
 
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 const ProtectedRoute = ({ children }) => {
     const [isAuth, setIsAuth] = useState(null);
@@ -61,7 +61,9 @@ const ProtectedRoute = ({ children }) => {
                 const response = await _post("/api/auth/validate-token");
                 const renewedToken = response?.data?.results?.data?.token;
                 if (renewedToken) localStorage.setItem("access_token", encryptData(renewedToken));
-                if (document.visibilityState === "visible" && Date.now() - lastInteraction.current >= 60000)
+                const active = document.activeElement;
+                const editing = active?.matches?.("input, textarea, select, [contenteditable='true']") || document.querySelector("[data-autosave-pending='true']");
+                if (document.visibilityState === "visible" && !editing && Date.now() - lastInteraction.current >= 60000)
                     setRefreshVersion((version) => version + 1);
             } catch {
                 await endSession("Your session is no longer available. Please sign in again.");

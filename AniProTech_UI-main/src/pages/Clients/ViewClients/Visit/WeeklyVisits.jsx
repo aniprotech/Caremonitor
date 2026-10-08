@@ -128,17 +128,31 @@ function VisitEditor({ initial, staff, onSave, onClose }) {
                         </select>
                     </label>
                     {!v.id && (
-                        <label>
-                            Repeat weekly for
-                            <input
-                                type="number"
-                                min={1}
-                                max={12}
-                                required
-                                value={v.repeatWeeks}
-                                onChange={(e) => change("repeatWeeks", Number(e.target.value))}
-                            />
-                        </label>
+                        <fieldset className="wv-recurrence">
+                            <legend>Select frequency</legend>
+                            <div className="wv-frequency" role="group" aria-label="Visit frequency">
+                                {["DAILY", "WEEKLY", "CUSTOM"].map((frequency) => (
+                                    <button type="button" key={frequency} className={v.frequency === frequency ? "active" : ""} onClick={() => change("frequency", frequency)}>
+                                        {frequency[0] + frequency.slice(1).toLowerCase()}
+                                    </button>
+                                ))}
+                            </div>
+                            {v.frequency !== "DAILY" && (
+                                <div className="wv-days" role="group" aria-label="Repeat on days">
+                                    {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((short, index) => {
+                                        const day = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"][index];
+                                        const selected = v.selectedDays?.includes(day);
+                                        return <button type="button" key={day} className={selected ? "active" : ""} onClick={() => change("selectedDays", selected ? v.selectedDays.filter((x) => x !== day) : [...v.selectedDays, day])}>{short}</button>;
+                                    })}
+                                </div>
+                            )}
+                            <div className="wv-two">
+                                <label>Repeats every<input type="number" min={1} max={12} value={v.repeatEvery} onChange={(e) => change("repeatEvery", Number(e.target.value))} /></label>
+                                <label>Unit<select value={v.repeatUnit} onChange={(e) => change("repeatUnit", e.target.value)}><option value="DAYS">Days</option><option value="WEEKS">Weeks</option></select></label>
+                            </div>
+                            <label>Ends (optional)<input type="date" min={v.date} value={v.endDate || ""} onChange={(e) => change("endDate", e.target.value || null)} /></label>
+                            {!v.endDate && <p className="wv-muted">No end date creates visits for the next 12 weeks. You can add future schedules later.</p>}
+                        </fieldset>
                     )}
                     <label>
                         Visit instructions
@@ -371,6 +385,11 @@ export default function WeeklyVisits({ calendar = false }) {
                                     notes: "",
                                     status: "DRAFT",
                                     repeatWeeks: 1,
+                                    frequency: "WEEKLY",
+                                    selectedDays: [],
+                                    repeatEvery: 1,
+                                    repeatUnit: "WEEKS",
+                                    endDate: null,
                                 })
                             }
                         >

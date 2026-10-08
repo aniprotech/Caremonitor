@@ -6,7 +6,7 @@ export const clinicalDetailsConfig = [
             { label: "NHS number", key: "nhsNumber" },
             { label: "Medical history", key: "medicalHistory" },
             { label: "Hospital", key: "hospitalName" },
-            { label: "Medical support", key: "medicalSupport" },
+            { label: "Medication support", key: "medicalSupport" },
         ],
     },
     {
@@ -33,6 +33,7 @@ export const clinicalDetailsConfig = [
             { label: "Phone code", key: "pharmacyPhoneCode" },
             { label: "Address", key: "pharmacyAddress" },
             { label: "Post code", key: "pharmacyPostCode" },
+            { label: "Other medication information", key: "pharmacyOtherInformation" },
         ],
     },
 ];

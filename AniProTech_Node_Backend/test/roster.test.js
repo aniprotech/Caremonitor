@@ -500,6 +500,20 @@ test("Roster workflows and Team safeguards", async (t) => {
       assert.equal((await call('post','/api/team-absence/create/'+staff.id,booking)).status,200);
       assert.equal((await call('post','/api/team-absence/create/'+staff.id,{...booking,startDate:'2027-02-30'})).status,400);
     });
+    await t.test("Daily, weekly and custom schedules create dated visits", async () => {
+      const daily = await call("post", "/api/roster/visits", {
+        ...base, staffId: null, status: "DRAFT", date: "2026-10-05", startTime: "11:00", endTime: "12:00",
+        frequency: "DAILY", repeatEvery: 2, endDate: "2026-10-09",
+      });
+      assert.equal(daily.status, 201, JSON.stringify(daily.body));
+      assert.deepEqual(data(daily).visits.map((v) => v.date), ["2026-10-05", "2026-10-07", "2026-10-09"]);
+      const custom = await call("post", "/api/roster/visits", {
+        ...base, staffId: null, status: "DRAFT", date: "2026-10-05", startTime: "13:00", endTime: "14:00",
+        frequency: "CUSTOM", selectedDays: ["MONDAY", "WEDNESDAY"], repeatEvery: 1, repeatUnit: "WEEKS", endDate: "2026-10-11",
+      });
+      assert.equal(custom.status, 201, JSON.stringify(custom.body));
+      assert.deepEqual(data(custom).visits.map((v) => v.date), ["2026-10-05", "2026-10-07"]);
+    });
   } finally {
     await db.close();
   }

@@ -268,8 +268,8 @@ export const clientsRiskLevelOptions = [
 ];
 
 export const getClientsClinicalMedicalSupportOptions = (clientName = "the client") => [
-    { label: `We provide ${clientName}'s medicine support`, value: true },
-    { label: `We do not provide ${clientName}'s medicine support`, value: false },
+    { label: `We provide ${clientName}'s medication support`, value: true },
+    { label: `We do not provide ${clientName}'s medication support`, value: false },
 ];
 
 export const clientsFamilyInvolvementOptions = [

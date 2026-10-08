@@ -345,6 +345,7 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
           {
             ethnicity: "Test",
             medicalHistory: ["Test condition"],
+            pharmacyOtherInformation: "Collect from the named pharmacy after 16:00.",
             healthWelfareLpa: "YES",
             healthWelfareLpaReference: "HW-LPA-1024",
             healthWelfareLpaDate: "2025-04-18",
@@ -366,6 +367,7 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
         );
         assert.equal(response.status, 200, JSON.stringify(response.body));
         assert.deepEqual(data(response).medicalHistory, ["Test condition"]);
+        assert.equal(data(response).pharmacyOtherInformation, "Collect from the named pharmacy after 16:00.");
         assert.equal(
           data(response).clientEmergencyContacts[0].firstName,
           "Contact",

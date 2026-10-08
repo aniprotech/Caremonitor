@@ -44,7 +44,7 @@ const EditClinicalDetails = () => {
                 <ClinicalAutocomplete label="Hospital (if applicable)" kind="hospital" value={clinicalDetails.hospitalName || ""} onChange={(value) => setFieldValue("clinicalDetails.hospitalName", value)} />
 
                 <RadioButtonGroup
-                    label={`Does ${clientName} require medical support?`}
+                    label={`Does ${clientName} require medication support?`}
                     name="clinicalDetails.medicalSupport"
                     value={clinicalDetails.medicalSupport || false}
                     options={getClientsClinicalMedicalSupportOptions(clientName)}
@@ -146,6 +146,18 @@ const EditClinicalDetails = () => {
                     value={clinicalDetails.pharmacyPostCode || ""}
                     valueChange={(e) => setFieldValue("clinicalDetails.pharmacyPostCode", e.target.value)}
                 />
+
+                <details className="rounded border border-slate-200 bg-slate-50 p-4">
+                    <summary className="cursor-pointer font-medium text-customTextNavy">Other</summary>
+                    <div className="mt-4">
+                        <TextAreaField
+                            label="Provide more information about medication ordering, collection and storing"
+                            name="clinicalDetails.pharmacyOtherInformation"
+                            value={clinicalDetails.pharmacyOtherInformation || ""}
+                            valueChange={(e) => setFieldValue("clinicalDetails.pharmacyOtherInformation", e.target.value)}
+                        />
+                    </div>
+                </details>
             </div>
         </div>
     );

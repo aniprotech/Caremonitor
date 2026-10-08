@@ -71,6 +71,7 @@ export const clinicalDetailsData = (data) => ({
     pharmacyPhoneCode: data?.pharmacyPhoneCode || "+44",
     pharmacyAddress: data?.pharmacyAddress || "",
     pharmacyPostCode: data?.pharmacyPostCode || "",
+    pharmacyOtherInformation: data?.pharmacyOtherInformation || "",
 });
 
 export const futurePlanningData = (data) => ({

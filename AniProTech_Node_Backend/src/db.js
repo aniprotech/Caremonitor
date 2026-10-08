@@ -49,6 +49,7 @@ for (const [name,column,type] of [
   ['propertyFinancialLpaDate','property_financial_lpa_date','LocalDate'],
   ['propertyFinancialLpaExpiry','property_financial_lpa_expiry','LocalDate'],
 ]) entities.ClientInformationEntity.fields.push({name,javaName:name,column,type});
+entities.ClientInformationEntity.fields.push({name:"pharmacyOtherInformation",javaName:"pharmacyOtherInformation",column:"pharmacy_other_information",type:"String"});
 const emergencyRelationship = entities.ClientEmergencyContactsEntity.fields.find(field => field.name === 'relationShip');
 if (emergencyRelationship) { emergencyRelationship.type = 'String'; emergencyRelationship.enumName = null; }
 export const quote = (s) => '"' + s.replaceAll('"', '""') + '"';
@@ -160,6 +161,7 @@ export async function initializeSchema(db) {
       if (current !== "text") await db.query(`ALTER TABLE client_information ALTER COLUMN ${quote(column)} TYPE text USING ${quote(column)}::text`);
     }
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS hospital_name text");
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS pharmacy_other_information text");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS health_welfare_lpa_reference text");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS health_welfare_lpa_date date");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS health_welfare_lpa_expiry date");

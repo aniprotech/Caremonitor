@@ -539,3 +539,10 @@
         padding: 0 6px;
     }
 }
+.wv-recurrence { border: 0; padding: 0; margin: 0; }
+.wv-recurrence legend { font-weight: 600; margin-bottom: 7px; }
+.wv-frequency, .wv-days { display: flex; flex-wrap: wrap; gap: 0; margin: 5px 0 12px; }
+.weekly-visits .wv-frequency button, .weekly-visits .wv-days button { border-radius: 0; padding: 8px 12px; margin-left: -1px; }
+.weekly-visits .wv-frequency button:first-child, .weekly-visits .wv-days button:first-child { margin-left: 0; border-radius: 4px 0 0 4px; }
+.weekly-visits .wv-frequency button:last-child, .weekly-visits .wv-days button:last-child { border-radius: 0 4px 4px 0; }
+.weekly-visits .wv-frequency button.active, .weekly-visits .wv-days button.active { background: #e2f5f3; color: #126d69; border-color: #168680; position: relative; }

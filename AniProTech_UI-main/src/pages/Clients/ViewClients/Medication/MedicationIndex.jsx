@@ -20,15 +20,22 @@ const MedicationIndex = () => {
     useScrollToTop();
 
     const [data, setData] = useState([]);
+    const [clientInformation, setClientInformation] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         const fetchExistingData = async () => {
             try {
                     setIsLoading(true);
-                const res = await _get(APIConfig.CLIENTS.MEDICATION_GET_BY_ID(id));
-                if (res?.data?.error === false) {
-                    setData(res.data?.results?.data);
+                const [medicationResult, informationResult] = await Promise.allSettled([
+                    _get(APIConfig.CLIENTS.MEDICATION_GET_BY_ID(id)),
+                    _get(APIConfig.CLIENTS.CLIENT_INFO_GET_BY_ID(id)),
+                ]);
+                if (medicationResult.status === "fulfilled" && medicationResult.value?.data?.error === false) {
+                    setData(medicationResult.value.data?.results?.data);
+                }
+                if (informationResult.status === "fulfilled" && informationResult.value?.data?.error === false) {
+                    setClientInformation(informationResult.value.data?.results?.data || {});
                 }
             } catch (err) {
                 console.error("Error fetching medication details", err);
@@ -54,12 +61,12 @@ const MedicationIndex = () => {
     return (
         <div className="min-h-screen bg-customBgLightBlue px-2 pb-10 md:px-10 md:pb-20 lg:px-36">
             {/* Top Banner */}
-            {!data?.isMedicineSupportProvided && (
+            {clientInformation?.medicalSupport === false && (
                 <div
-                    onClick={() => handleNavigate("personal-details")}
+                    onClick={() => navigate(`/admin/clients/${id}/client-info/edit?tab=clinical-details`)}
                     className="poppins-semibold mb-6 flex cursor-pointer items-center justify-between border border-customTextLightNavy bg-customBgSandal p-3 px-5 text-sm text-customBlack md:px-10 xl:px-24"
                 >
-                    <span>We do not provide {clientName}&apos;s medicine support. Update their details to begin recording medication events</span>
+                    <span>We do not provide {clientName}&apos;s medication support. Update Client Information to begin recording medication events.</span>
                     <button className="ml-2 whitespace-nowrap text-customTextLightNavy">
                         <ChevronRight />
                     </button>
