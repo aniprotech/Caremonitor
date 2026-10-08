@@ -234,9 +234,9 @@ const EditClientsInfo = () => {
                         <div className="py-6 lg:w-64 lg:flex-shrink-0 lg:px-4">
                             <div className="sticky top-36">
                                 <div className="rounded-lg border border-gray-200 bg-white md:p-4">
-                                    <h3 className="poppins-medium mb-4 text-lg text-customTextGrey">{tabs[activeTab]?.name}</h3>
+                                    <h3 className="poppins-medium mb-4 text-lg text-customTextGrey">{clientInfoTabs[activeTab]?.name}</h3>
                                     <nav className="space-y-2">
-                                        {sectionHeaders[tabKeyMap[tabs[activeTab]?.name]]?.map((section) => (
+                                        {sectionHeaders[tabKeyMap[clientInfoTabs[activeTab]?.name]]?.map((section) => (
                                             <button
                                                 key={section.id}
                                                 type="button"
