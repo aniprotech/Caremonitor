@@ -14,6 +14,7 @@ type PickerProps = {
 const pad = (value: number) => String(value).padStart(2, "0");
 const formatDate = (value: Date) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
 const formatTime = (value: Date) => `${pad(value.getHours())}:${pad(value.getMinutes())}`;
+const ukDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}` : "";
 
 function selectedDate(value: string, mode: "date" | "time") {
   const selected = new Date();
@@ -53,11 +54,11 @@ function PickerField({ label, value, onChangeText, optional, minDate, mode }: Pi
     <Text style={styles.muted}>{label}</Text>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Choose ${label}`} onPress={choose} style={[styles.input, { flex: 1 }]}>
-        <Text style={styles.text}>{value || (mode === "date" ? "Choose date" : "Choose time")} ▾</Text>
+        <Text style={styles.text}>{mode === "date" ? (ukDate(value) || "DD/MM/YYYY") : (value || "Choose time")} ▾</Text>
       </Pressable>
       {optional && !!value && <Button title="Clear" variant="secondary" onPress={() => onChangeText("")} />}
     </View>
-    <Input label={`Or type ${label} (${mode === "date" ? "YYYY-MM-DD" : "HH:MM"})`} value={value} onChangeText={onChangeText} keyboardType="numbers-and-punctuation" maxLength={mode === "date" ? 10 : 5}/>
+    {mode === "time" && <Input label={`Or type ${label} (HH:MM)`} value={value} onChangeText={onChangeText} keyboardType="numbers-and-punctuation" maxLength={5}/>}
     {Platform.OS === "ios" && <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
       <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "#0008" }}>
         <View style={{ backgroundColor: "white", padding: 20, gap: 12, borderTopLeftRadius: 18, borderTopRightRadius: 18 }}>

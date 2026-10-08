@@ -540,6 +540,8 @@
     }
 }
 .wv-recurrence { border: 0; padding: 0; margin: 0; }
+.wv-end-date-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.weekly-visits .wv-clear-date { padding: 3px 8px; font-size: 12px; }
 .wv-recurrence legend { font-weight: 600; margin-bottom: 7px; }
 .wv-frequency, .wv-days { display: flex; flex-wrap: wrap; gap: 0; margin: 5px 0 12px; }
 .weekly-visits .wv-frequency button, .weekly-visits .wv-days button { border-radius: 0; padding: 8px 12px; margin-left: -1px; }

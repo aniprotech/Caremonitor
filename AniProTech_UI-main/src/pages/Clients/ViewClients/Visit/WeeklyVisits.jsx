@@ -150,7 +150,13 @@ function VisitEditor({ initial, staff, onSave, onClose }) {
                                 <label>Repeats every<input type="number" min={1} max={12} value={v.repeatEvery} onChange={(e) => change("repeatEvery", Number(e.target.value))} /></label>
                                 <label>Unit<select value={v.repeatUnit} onChange={(e) => change("repeatUnit", e.target.value)}><option value="DAYS">Days</option><option value="WEEKS">Weeks</option></select></label>
                             </div>
-                            <label>Ends (optional)<input type="date" min={v.date} value={v.endDate || ""} onChange={(e) => change("endDate", e.target.value || null)} /></label>
+                            <div className="wv-end-date">
+                                <div className="wv-end-date-heading">
+                                    <label htmlFor="visit-end-date">Ends (optional)</label>
+                                    {v.endDate && <button type="button" className="wv-clear-date" onClick={() => change("endDate", null)}>Clear date</button>}
+                                </div>
+                                <input id="visit-end-date" type="date" min={v.date} value={v.endDate || ""} onChange={(e) => change("endDate", e.target.value || null)} />
+                            </div>
                             {!v.endDate && <p className="wv-muted">No end date creates visits for the next 12 weeks. You can add future schedules later.</p>}
                         </fieldset>
                     )}

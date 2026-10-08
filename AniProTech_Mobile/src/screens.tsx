@@ -100,6 +100,10 @@ function visitDuration(start:string,end:string) {
   const minutes=b[0]*60+b[1]-a[0]*60-a[1];
   return Number.isFinite(minutes)&&minutes>0?`${minutes} min`:"";
 }
+const repeatDays = [
+  ["MON", "MONDAY"], ["TUE", "TUESDAY"], ["WED", "WEDNESDAY"], ["THU", "THURSDAY"],
+  ["FRI", "FRIDAY"], ["SAT", "SATURDAY"], ["SUN", "SUNDAY"],
+] as const;
 export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requestedVisitId?:string|null;onVisitOpened?:()=>void}) {
   const [date, setDate] = useState(today),
     [selected, setSelected] = useState<Row | null>(null),
@@ -120,6 +124,11 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     [endTime,setEndTime]=useState("10:00"),
     [visitTitle,setVisitTitle]=useState("Care visit"),
     [visitNotes,setVisitNotes]=useState(""),
+    [visitFrequency,setVisitFrequency]=useState<"DAILY"|"WEEKLY"|"CUSTOM">("WEEKLY"),
+    [repeatEvery,setRepeatEvery]=useState("1"),
+    [repeatUnit,setRepeatUnit]=useState<"DAYS"|"WEEKS">("WEEKS"),
+    [selectedDays,setSelectedDays]=useState<string[]>([]),
+    [visitEndDate,setVisitEndDate]=useState(""),
     [visitFormError,setVisitFormError]=useState(""),
     [selectedMedication,setSelectedMedication]=useState<Row|null>(null),
     [medicationOutcome,setMedicationOutcome]=useState("ADMINISTERED"),
@@ -225,12 +234,13 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     setBusy(true);
     setVisitFormError("");
     try{
-      const payload={clientId,staffId:staffId||null,date,startTime,endTime,title:visitTitle,notes:visitNotes,status:staffId?"SCHEDULED":"DRAFT",repeatWeeks:1,requiredStaff:editingVisit?.requiredStaff||1,openShift:editingVisit?.openShift||false,...(editingVisit?{revision:editingVisit.revision}:{})};
+      if(!editingVisit&&visitEndDate&&visitEndDate<date)throw new Error("The optional end date must be on or after the visit date.");
+      const payload={clientId,staffId:staffId||null,date,startTime,endTime,title:visitTitle,notes:visitNotes,status:staffId?"SCHEDULED":"DRAFT",repeatWeeks:1,requiredStaff:editingVisit?.requiredStaff||1,openShift:editingVisit?.openShift||false,...(!editingVisit?{frequency:visitFrequency,repeatEvery:Math.max(1,Math.min(12,Number(repeatEvery)||1)),repeatUnit,selectedDays:visitFrequency==="DAILY"?[]:selectedDays,endDate:visitEndDate||null}:{}),...(editingVisit?{revision:editingVisit.revision}:{})};
       if(editingVisit){
         const updated=await api<Row>(`/api/roster/visits/${editingVisit.id}`,"PUT",payload);
         setSelected(updated);setDetail(await api(`/api/mobile/visits/${updated.id}`));
       }else await api("/api/roster/visits","POST",payload);
-      setCreating(false);setEditingVisit(null);setClientId("");setStaffId("");setVisitNotes("");refresh();
+      setCreating(false);setEditingVisit(null);setClientId("");setStaffId("");setVisitNotes("");setVisitFrequency("WEEKLY");setRepeatEvery("1");setRepeatUnit("WEEKS");setSelectedDays([]);setVisitEndDate("");refresh();
       Alert.alert(editingVisit?"Visit updated":"Visit created","The assignment is saved in the web roster and will appear on the caregiver's mobile schedule.");
     }catch(e){
       setVisitFormError((e as Error).message);
@@ -240,6 +250,10 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
   function editVisit(visit:Row){
     setVisitFormError("");setEditingVisit(visit);setClientId(visit.clientId);setStaffId(visit.staffId||"");setDate(visit.date);
     setStartTime(visit.startTime);setEndTime(visit.endTime);setVisitTitle(visit.title);setVisitNotes(visit.notes||"");setCreating(true);
+  }
+  function startNewVisit(){
+    setVisitFormError("");setEditingVisit(null);setClientId("");setStaffId("");setDate(today());setStartTime("09:00");setEndTime("10:00");setVisitTitle("Care visit");setVisitNotes("");
+    setVisitFrequency("WEEKLY");setRepeatEvery("1");setRepeatUnit("WEEKS");setSelectedDays([]);setVisitEndDate("");setCreating(true);
   }
   async function openVisit(v: Row) {
     setSelected(v); setQrCode(""); setQrUnavailable(false); setQrUnavailableReason(""); qrScanHandled.current=false; setScanningQr(false); setBusy(true);
@@ -355,7 +369,7 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     >
       <Text style={styles.title}>Assigned client visits</Text>
       <Text style={styles.muted}>Select an assigned client visit, check in, record care, then check out. All visit times are Europe/London.</Text>
-      {user.role!=="CAREGIVER"&&!selected&&<Button title={creating?"Cancel new visit":"Add visit"} onPress={()=>{setVisitFormError("");setEditingVisit(null);setCreating(v=>!v)}}/>}
+      {user.role!=="CAREGIVER"&&!selected&&<Button title={creating?"Cancel new visit":"Add visit"} onPress={()=>{if(creating){setCreating(false);setEditingVisit(null)}else startNewVisit()}}/>}
       {creating&&<Card>
         <Text style={styles.heading}>{editingVisit?"Edit visit and caregiver":"New scheduled visit"}</Text>
         <ErrorText error={visitFormError} />
@@ -365,6 +379,14 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
         {options.data?.staff.map(p=><Card key={p.id} onPress={()=>setStaffId(staffId===p.id?"":p.id)}><Text style={styles.text}>{staffId===p.id?"✓ ":""}{p.name}</Text></Card>)}
         <DateInput label="Visit date" value={date} onChangeText={setDate}/>
         <View style={styles.row}><View style={{flex:1}}><TimeInput label="Starts" value={startTime} onChangeText={setStartTime}/></View><View style={{flex:1}}><TimeInput label="Ends" value={endTime} onChangeText={setEndTime}/></View></View>
+        {!editingVisit&&<>
+          <Text style={styles.muted}>Repeat schedule</Text>
+          <View style={styles.row}>{(["DAILY","WEEKLY","CUSTOM"] as const).map(frequency=><Button key={frequency} title={frequency[0]+frequency.slice(1).toLowerCase()} variant="secondary" selected={visitFrequency===frequency} onPress={()=>setVisitFrequency(frequency)}/>)}</View>
+          {visitFrequency!=="DAILY"&&<><Text style={styles.muted}>Repeat on (leave clear to use the visit date's day)</Text><View style={styles.row}>{repeatDays.map(([short,day])=><Button key={day} title={short} variant="secondary" selected={selectedDays.includes(day)} onPress={()=>setSelectedDays(days=>days.includes(day)?days.filter(value=>value!==day):[...days,day])}/>)}</View></>}
+          <View style={styles.row}><View style={{flex:1}}><Input label="Repeats every" value={repeatEvery} onChangeText={setRepeatEvery} keyboardType="number-pad" maxLength={2}/></View><View style={{flex:1}}><Text style={styles.muted}>Unit</Text><View style={styles.row}><Button title="Days" variant="secondary" selected={repeatUnit==="DAYS"} onPress={()=>setRepeatUnit("DAYS")}/><Button title="Weeks" variant="secondary" selected={repeatUnit==="WEEKS"} onPress={()=>setRepeatUnit("WEEKS")}/></View></View></View>
+          <DateInput label="Ends (optional)" value={visitEndDate} onChangeText={setVisitEndDate} optional minDate={date}/>
+          {!visitEndDate&&<Text style={styles.muted}>Leave this empty to create visits for the next 12 weeks. You can add a future schedule later.</Text>}
+        </>}
         <Input label="Visit title" value={visitTitle} onChangeText={setVisitTitle} maxLength={160}/>
         <Input label="Instructions" value={visitNotes} onChangeText={setVisitNotes} multiline maxLength={4000}/>
         <View style={styles.row}><Button title="Cancel" variant="secondary" onPress={()=>{setCreating(false);setEditingVisit(null)}}/><Button title={busy?"Saving…":editingVisit?"Save changes":"Create visit"} disabled={busy||!clientId||!visitTitle.trim()} onPress={()=>void saveVisit()}/></View>
