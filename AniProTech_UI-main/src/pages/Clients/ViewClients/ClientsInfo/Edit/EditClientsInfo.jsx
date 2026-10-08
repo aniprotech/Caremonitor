@@ -24,6 +24,7 @@ import { fetchData } from "../../../../../utils/FetchData";
 import InnerLoader from "../../../../../components/Loader/InnerLoader";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
 import { normaliseNhsNumber } from "../../../../../utils/nhsNumber";
+import FormDraftAutosave, { clearFormDraft, readFormDraft } from "../../../../../components/Common/FormDraftAutosave";
 
 const clientInfoTabs = [
     { name: "Personal Identity", component: EditPersonalIdentity },
@@ -40,6 +41,9 @@ const EditClientsInfo = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { id } = useParams();
+    const draftKey = `caremonitor:client-information:${id}`;
+    const [draftStatus, setDraftStatus] = useState("");
+    const [draft] = useState(() => readFormDraft(draftKey));
     const { clientsPersonalDetailData } = useGlobalStore();
     const clientName = clientsPersonalDetailData ? `${clientsPersonalDetailData.firstName}` : "the client";
 
@@ -66,7 +70,7 @@ const EditClientsInfo = () => {
         if (index >= 0) setActiveTab(index);
     }, [requestedTab]);
 
-    const initialValues = {
+    const fetchedInitialValues = {
         personalIdentity: personalIdentityData(data),
         clinicalDetails: clinicalDetailsData(data),
         futurePlanning: futurePlanningData(data),
@@ -103,6 +107,7 @@ const EditClientsInfo = () => {
         },
         clientInactivity: data?.clientInactivity|| [],
     };
+    const initialValues = draft?.values || fetchedInitialValues;
 
     useEffect(() => {
         if (tabPanelRef.current) {
@@ -174,6 +179,7 @@ const EditClientsInfo = () => {
         const response = await fetchData((data) => _post(APIConfig?.CLIENTS.CLIENT_INFO_UPDATE(id), data), null, setLoading, null, payload, false);
 
         if (response?.data?.error === false) {
+            clearFormDraft(draftKey);
             showSuccess(response?.data?.message || "Client information updated successfully");
             navigate(-1);
         }
@@ -187,7 +193,8 @@ const EditClientsInfo = () => {
             enableReinitialize
         >
             {({ values, setFieldValue, errors, touched }) => (
-                <Form className="relative min-h-screen bg-white md:mx-5 lg:mx-20 xl:mx-40">
+                <Form className="relative min-h-screen bg-white md:mx-5 lg:mx-20 xl:mx-40" data-autosave-pending={draftStatus === "Saving draft…" ? "true" : undefined}>
+                    <FormDraftAutosave storageKey={draftKey} enabled={Boolean(data)} onStatusChange={setDraftStatus} />
                     {/* Top Navigation */}
                     <div className="sticky top-14 z-30 border-b bg-white pt-7 md:px-3">
                         <div className="relative border-b border-gray-300">
@@ -254,6 +261,7 @@ const EditClientsInfo = () => {
 
                     {/* Save Button */}
                     <div className="fixed bottom-0 left-0 right-2 border-t border-gray-200 bg-white py-5 pr-10 shadow-lg">
+                        {draftStatus && <span className="float-right mt-2 mr-4 text-xs text-slate-600">{draftStatus}</span>}
                         <button
                             type="submit"
                             disabled={loading}

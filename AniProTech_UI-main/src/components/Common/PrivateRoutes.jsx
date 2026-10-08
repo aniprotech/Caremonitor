@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { _post } from "../../utils/ApiService";
 import { showError } from "../../utils/toaster";
@@ -11,8 +11,6 @@ const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 const ProtectedRoute = ({ children }) => {
     const [isAuth, setIsAuth] = useState(null);
-    const [refreshVersion, setRefreshVersion] = useState(0);
-    const lastInteraction = useRef(Date.now());
     useEffect(() => {
         const token = localStorage.getItem("access_token");
         const handleValidateToken = async () => {
@@ -43,7 +41,6 @@ const ProtectedRoute = ({ children }) => {
 
         handleValidateToken();
         let ending = false;
-        const activity = () => { lastInteraction.current = Date.now(); };
         const endSession = async (message) => {
             if (ending) return;
             ending = true;
@@ -54,17 +51,13 @@ const ProtectedRoute = ({ children }) => {
             setIsAuth(false);
             showError(message);
         };
-        const events = ["pointerdown", "keydown", "touchstart", "scroll"];
-        events.forEach((event) => window.addEventListener(event, activity, { passive: true }));
         const refresh = async () => {
             try {
                 const response = await _post("/api/auth/validate-token");
                 const renewedToken = response?.data?.results?.data?.token;
                 if (renewedToken) localStorage.setItem("access_token", encryptData(renewedToken));
-                const active = document.activeElement;
-                const editing = active?.matches?.("input, textarea, select, [contenteditable='true']") || document.querySelector("[data-autosave-pending='true']");
-                if (document.visibilityState === "visible" && !editing && Date.now() - lastInteraction.current >= 60000)
-                    setRefreshVersion((version) => version + 1);
+                // Renew the session in the background only.  Never remount the
+                // application here: a remount clears in-progress form state.
             } catch {
                 await endSession("Your session is no longer available. Please sign in again.");
             }
@@ -82,7 +75,6 @@ const ProtectedRoute = ({ children }) => {
         document.addEventListener("visibilitychange", handleVisibility);
         window.addEventListener("storage", handleStorage);
         return () => {
-            events.forEach((event) => window.removeEventListener(event, activity));
             window.clearInterval(heartbeat);
             document.removeEventListener("visibilitychange", handleVisibility);
             window.removeEventListener("storage", handleStorage);
@@ -119,7 +111,7 @@ const ProtectedRoute = ({ children }) => {
         );
     }
 
-    return <Fragment key={refreshVersion}>{children}</Fragment>;
+    return children;
 };
 
 export default ProtectedRoute;
