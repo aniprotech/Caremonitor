@@ -125,6 +125,10 @@ function recordFile(id: string) {
   return new File(offlineDirectory, `${id}.care`);
 }
 function photoFile(id: string) { return new File(offlineDirectory, `${id}.photo`); }
+function formDraftFile(scope: string) {
+  if (!/^[a-z0-9-]{1,120}$/i.test(scope)) throw new Error("Invalid form draft identifier");
+  return new File(offlineDirectory, `draft-${scope}.care`);
+}
 async function offlineKey(): Promise<AESEncryptionKey> {
   if (!encryptionKeyPromise) encryptionKeyPromise = (async () => {
     const stored = await SecureStore.getItemAsync(offlineKeyName);
@@ -148,6 +152,43 @@ async function decryptRecord(file: File): Promise<PendingMutation> {
       typeof (item as PendingMutation).ownerId !== "string" || typeof (item as PendingMutation).path !== "string")
     throw new Error("An offline care record is invalid. Do not sign out; contact support.");
   return item as PendingMutation;
+}
+/** Device-bound encrypted storage for unfinished forms. Drafts are local only. */
+export async function saveFormDraft(scope: string, draft: unknown) {
+  if (Platform.OS === "web") return;
+  const raw = JSON.stringify(draft);
+  if (raw.length > 100_000) throw new Error("This unfinished form is too large to store safely on this device.");
+  offlineDirectory.create({ idempotent: true, intermediates: true });
+  const target = formDraftFile(scope);
+  const temporary = new File(offlineDirectory, `draft-${scope}.tmp`);
+  temporary.create({ overwrite: true });
+  try {
+    const sealed = await aesEncryptAsync(Base64.encode(raw), await offlineKey());
+    temporary.write(await sealed.combined());
+    await temporary.move(target, { overwrite: true });
+  } finally { if (temporary.exists) temporary.delete(); }
+}
+export async function restoreFormDraft<T>(scope: string): Promise<T | null> {
+  if (Platform.OS === "web") return null;
+  const file = formDraftFile(scope);
+  if (!file.exists) return null;
+  try {
+    const raw = await aesDecryptAsync(AESSealedData.fromCombined(await file.bytes()), await offlineKey(), { output: "base64" });
+    return JSON.parse(Base64.decode(raw)) as T;
+  } catch {
+    if (file.exists) file.delete();
+    return null;
+  }
+}
+export async function clearFormDraft(scope: string) {
+  if (Platform.OS === "web") return;
+  const file = formDraftFile(scope);
+  if (file.exists) file.delete();
+}
+export async function clearAllFormDrafts() {
+  if (Platform.OS === "web" || !offlineDirectory.exists) return;
+  for (const file of offlineDirectory.list())
+    if (file instanceof File && /^draft-[a-z0-9-]{1,120}\.care$/i.test(file.name)) file.delete();
 }
 async function saveRecord(item: PendingMutation) {
   offlineDirectory.create({ idempotent: true, intermediates: true });

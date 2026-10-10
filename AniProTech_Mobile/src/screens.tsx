@@ -14,7 +14,7 @@ import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { API_URL, api, apiOrQueue, clientEventId, flushPendingMutations, pendingMutationSummary, uploadOrQueuePhoto, User, SyncSummary } from "./api";
+import { API_URL, api, apiOrQueue, clearFormDraft, clientEventId, flushPendingMutations, pendingMutationSummary, restoreFormDraft, saveFormDraft, uploadOrQueuePhoto, User, SyncSummary } from "./api";
 import { CarePlanManager, PrnLimitsManager, TaskPlanManager } from "./admin";
 import { MedicationBodyMap, SkinBodyMap } from "./bodyMap";
 import { AccountingManager, FinanceManager } from "./operations";
@@ -159,6 +159,7 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     [clock,setClock]=useState(Date.now()),
     [syncSummary,setSyncSummary]=useState<SyncSummary>({pending:0,blocked:0,sent:0,lastSyncAt:null,items:[]});
   const locationSubscription=useRef<Location.LocationSubscription|null>(null);
+  const visitDraftReady=useRef(false);
   const qrScanHandled=useRef(false);
   const [cameraPermission,requestCameraPermission]=useCameraPermissions();
   const arrivalSubscription=useRef<Location.LocationSubscription|null>(null);
@@ -170,6 +171,27 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
   const week=useData<{visits:Row[]}>(`/api/roster/visits?from=${today()}&to=${addDays(today(),6)}`);
   const openShifts=useData<{visits:Row[]}>(`/api/roster/open-shifts?from=${date}&to=${date}`);
   const options=useData<{canManage:boolean;clients:Row[];staff:Row[]}>("/api/roster/options");
+  const visitDraftScope=`visit-${user.id}`;
+  useEffect(()=>{
+    let active=true;
+    if(user.role==="CAREGIVER"){visitDraftReady.current=true;return;}
+    void restoreFormDraft<Row>(visitDraftScope).then(draft=>{
+      if(!active||!draft||draft.version!==1)return;
+      setClientId(String(draft.clientId||""));setStaffId(String(draft.staffId||""));setDate(String(draft.date||today()));
+      setStartTime(String(draft.startTime||"09:00"));setEndTime(String(draft.endTime||"10:00"));setVisitTitle(String(draft.visitTitle||"Care visit"));setVisitNotes(String(draft.visitNotes||""));
+      setVisitFrequency(["DAILY","WEEKLY","CUSTOM"].includes(draft.visitFrequency)?draft.visitFrequency:"WEEKLY");
+      setRepeatEvery(String(draft.repeatEvery||"1"));setRepeatUnit(draft.repeatUnit==="DAYS"?"DAYS":"WEEKS");
+      setSelectedDays(Array.isArray(draft.selectedDays)?draft.selectedDays.filter((day:unknown)=>typeof day==="string"):[]);setVisitEndDate(String(draft.visitEndDate||""));setCreating(true);
+      Alert.alert("Visit draft restored","Your unfinished visit schedule was restored on this device. Review it and save when ready.");
+    }).finally(()=>{visitDraftReady.current=true;});
+    return()=>{active=false};
+  },[user.id,user.role,visitDraftScope]);
+  useEffect(()=>{
+    if(user.role==="CAREGIVER"||!creating||!!editingVisit||!visitDraftReady.current)return;
+    const draft={version:1,clientId,staffId,date,startTime,endTime,visitTitle,visitNotes,visitFrequency,repeatEvery,repeatUnit,selectedDays,visitEndDate};
+    const timer=setTimeout(()=>{void saveFormDraft(visitDraftScope,draft).catch(()=>{});},700);
+    return()=>clearTimeout(timer);
+  },[user.role,creating,editingVisit,clientId,staffId,date,startTime,endTime,visitTitle,visitNotes,visitFrequency,repeatEvery,repeatUnit,selectedDays,visitEndDate,visitDraftScope]);
   useEffect(()=>{
     if(!requestedVisitId)return;
     let active=true;
@@ -240,6 +262,7 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
         const updated=await api<Row>(`/api/roster/visits/${editingVisit.id}`,"PUT",payload);
         setSelected(updated);setDetail(await api(`/api/mobile/visits/${updated.id}`));
       }else await api("/api/roster/visits","POST",payload);
+      await clearFormDraft(visitDraftScope);
       setCreating(false);setEditingVisit(null);setClientId("");setStaffId("");setVisitNotes("");setVisitFrequency("WEEKLY");setRepeatEvery("1");setRepeatUnit("WEEKS");setSelectedDays([]);setVisitEndDate("");refresh();
       Alert.alert(editingVisit?"Visit updated":"Visit created","The assignment is saved in the web roster and will appear on the caregiver's mobile schedule.");
     }catch(e){
@@ -248,12 +271,17 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     }finally{setBusy(false)}
   }
   function editVisit(visit:Row){
+    void clearFormDraft(visitDraftScope);
     setVisitFormError("");setEditingVisit(visit);setClientId(visit.clientId);setStaffId(visit.staffId||"");setDate(visit.date);
     setStartTime(visit.startTime);setEndTime(visit.endTime);setVisitTitle(visit.title);setVisitNotes(visit.notes||"");setCreating(true);
   }
   function startNewVisit(){
     setVisitFormError("");setEditingVisit(null);setClientId("");setStaffId("");setDate(today());setStartTime("09:00");setEndTime("10:00");setVisitTitle("Care visit");setVisitNotes("");
     setVisitFrequency("WEEKLY");setRepeatEvery("1");setRepeatUnit("WEEKS");setSelectedDays([]);setVisitEndDate("");setCreating(true);
+  }
+  function discardVisitDraft(){
+    void clearFormDraft(visitDraftScope);
+    setCreating(false);setEditingVisit(null);setVisitFormError("");
   }
   async function openVisit(v: Row) {
     setSelected(v); setQrCode(""); setQrUnavailable(false); setQrUnavailableReason(""); qrScanHandled.current=false; setScanningQr(false); setBusy(true);
@@ -369,7 +397,7 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     >
       <Text style={styles.title}>Assigned client visits</Text>
       <Text style={styles.muted}>Select an assigned client visit, check in, record care, then check out. All visit times are Europe/London.</Text>
-      {user.role!=="CAREGIVER"&&!selected&&<Button title={creating?"Cancel new visit":"Add visit"} onPress={()=>{if(creating){setCreating(false);setEditingVisit(null)}else startNewVisit()}}/>}
+      {user.role!=="CAREGIVER"&&!selected&&<Button title={creating?"Cancel new visit":"Add visit"} onPress={()=>{if(creating)discardVisitDraft();else startNewVisit()}}/>}
       {creating&&<Card>
         <Text style={styles.heading}>{editingVisit?"Edit visit and caregiver":"New scheduled visit"}</Text>
         <ErrorText error={visitFormError} />
@@ -389,7 +417,8 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
         </>}
         <Input label="Visit title" value={visitTitle} onChangeText={setVisitTitle} maxLength={160}/>
         <Input label="Instructions" value={visitNotes} onChangeText={setVisitNotes} multiline maxLength={4000}/>
-        <View style={styles.row}><Button title="Cancel" variant="secondary" onPress={()=>{setCreating(false);setEditingVisit(null)}}/><Button title={busy?"Saving…":editingVisit?"Save changes":"Create visit"} disabled={busy||!clientId||!visitTitle.trim()} onPress={()=>void saveVisit()}/></View>
+        <Text style={styles.muted}>{editingVisit?"Changes are saved when you choose Save changes.":"This unfinished visit schedule is saved securely on this device while you type."}</Text>
+        <View style={styles.row}><Button title="Cancel" variant="secondary" onPress={discardVisitDraft}/><Button title={busy?"Saving…":editingVisit?"Save changes":"Create visit"} disabled={busy||!clientId||!visitTitle.trim()} onPress={()=>void saveVisit()}/></View>
       </Card>}
       <View style={styles.row}>
         <Button

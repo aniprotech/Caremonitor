@@ -28,6 +28,7 @@ import {
   API_URL,
   onUnauthorized,
   clearPendingMutations,
+  clearAllFormDrafts,
   flushPendingMutations,
   pendingMutationSummary,
 } from "./src/api";
@@ -52,7 +53,6 @@ export default function App() {
     [menuOpen, setMenuOpen] = useState(false),
     [moreDestination, setMoreDestination] = useState({ section: "", request: 0 }),
     [requestedVisitId, setRequestedVisitId] = useState<string | null>(null),
-    [refreshVersion, setRefreshVersion] = useState(0),
     [deviceLock, setDeviceLock] = useState(false),
     [pushEnabled, setPushEnabled] = useState(false),
     [locked, setLocked] = useState(false),
@@ -236,7 +236,10 @@ export default function App() {
     } catch {
     } finally {
       await saveToken(null);
-      if (clearOfflineRecords && user) await clearPendingMutations(user.id);
+      if (clearOfflineRecords && user) {
+        await clearPendingMutations(user.id);
+        await clearAllFormDrafts();
+      }
       setUser(null);
       setLocked(false);
       setDeviceLock(false);
@@ -281,8 +284,7 @@ export default function App() {
       if (syncing) return;
       syncing = true;
       try {
-        const result = await flushPendingMutations(user.id);
-        if (result.sent) setRefreshVersion((version) => version + 1);
+        await flushPendingMutations(user.id);
       } catch {
         // The offline queue remains available for the next reconnect or manual sync.
       } finally {
@@ -295,13 +297,13 @@ export default function App() {
         const result = await api<{ token?: string }>("/api/auth/validate-token", "POST");
         if (result.token) await saveToken(result.token);
         await sync();
-        if (AppState.currentState === "active" && Date.now() - lastActivity.current >= 60000)
-          setRefreshVersion((version) => version + 1);
+        // Keep credentials and queued records current without remounting the
+        // active screen: a remount can discard data someone is entering.
       } catch {
         await finishLogout("Your session is no longer available. Please sign in again.");
       }
     };
-    const heartbeat = setInterval(() => { void refresh(); }, 5 * 60 * 1000);
+    const heartbeat = setInterval(() => { void refresh(); }, 10 * 60 * 1000);
     const appState = AppState.addEventListener("change", (next) => {
       if (next === "background") {
         if (authenticating.current) return;
@@ -490,7 +492,7 @@ export default function App() {
                   {[0, 1, 2].map((line) => <View key={line} style={{ width: 21, height: 2, borderRadius: 2, backgroundColor: colours.navy }} />)}
                 </Pressable>
               </View>
-              <View key={refreshVersion} style={{ flex: 1 }}>
+              <View style={{ flex: 1 }}>
                 {tab === "Admin" && user.role !== "CAREGIVER" ? (
                   <AdminHome user={user} navigate={setTab} />
                 ) : tab === "Visits" ? (
