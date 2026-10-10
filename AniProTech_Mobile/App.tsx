@@ -41,12 +41,46 @@ function newerVersion(latest:string,current:string){
   return next.length===3&&installed.length===3&&next.every(Number.isSafeInteger)&&installed.every(Number.isSafeInteger)&&
     next.some((value,index)=>value!==installed[index]&&next.slice(0,index).every((prior,position)=>prior===installed[position])&&value>installed[index]);
 }
+function ProductTour({onExit}:{onExit:()=>void}) {
+  const [role,setRole]=useState<"Caregiver"|"Administrator">("Caregiver");
+  const [detail,setDetail]=useState("overview");
+  const caregiver=role==="Caregiver";
+  const detailText=detail==="visit"
+    ? "Example visit: 09:00–10:00. Record arrival, care provided and any observation before completing the visit."
+    : detail==="medication"
+      ? "Medication safety example: confirm the product, strength and directions from the dispensing label before recording administration."
+      : detail==="clients"
+        ? "Client records example: authorised staff can view care plans, risks and current support information from one secure profile."
+        : "This is a read-only demonstration using fictional information. No care information is shown, collected or stored.";
+  return (
+    <ScrollView contentContainerStyle={[styles.page,{paddingTop:40}]}>
+      <Image source={require("./assets/brand-logo.png")} resizeMode="contain" style={{width:"100%",height:110,borderRadius:16}} accessibilityLabel="AniProTech" />
+      <Text style={[styles.badge,{letterSpacing:2}]}>CAREMONITOR</Text>
+      <Text style={styles.title}>Product tour</Text>
+      <Text style={styles.muted}>Explore a read-only, fictional example of the Caremonitor mobile experience. No real care information is used.</Text>
+      <View style={styles.row}>
+        <View style={{flex:1}}><Button title="Caregiver" selected={caregiver} variant="secondary" onPress={()=>{setRole("Caregiver");setDetail("overview");}} /></View>
+        <View style={{flex:1}}><Button title="Administrator" selected={!caregiver} variant="secondary" onPress={()=>{setRole("Administrator");setDetail("overview");}} /></View>
+      </View>
+      {caregiver ? <>
+        <View style={styles.card}><Text style={styles.heading}>Today’s visit</Text><Text style={styles.text}>Example client · Morning support · 09:00–10:00</Text><Text style={styles.muted}>Staff can see the plan, record care and flag a concern in the live visit workflow.</Text><Button title="View visit example" variant="secondary" onPress={()=>setDetail("visit")} /></View>
+        <View style={styles.card}><Text style={styles.heading}>Medication support</Text><Text style={styles.muted}>The medicine list is checked against the dispensing label before scheduling or recording administration.</Text><Button title="View medication safety example" variant="secondary" onPress={()=>setDetail("medication")} /></View>
+      </> : <>
+        <View style={styles.card}><Text style={styles.heading}>Today’s operations</Text><Text style={styles.text}>Fictional example: 12 planned visits · 2 awaiting review</Text><Text style={styles.muted}>Administrators use the dashboard to oversee scheduling, exceptions and team updates.</Text></View>
+        <View style={styles.card}><Text style={styles.heading}>Client records and quality</Text><Text style={styles.muted}>Authorised administrators can manage client information, care plans, invoices and audit-ready activity records.</Text><Button title="View client record example" variant="secondary" onPress={()=>setDetail("clients")} /></View>
+      </>}
+      <View accessibilityRole="summary" style={[styles.card,{backgroundColor:"#EAF8FD"}]}><Text style={styles.heading}>What this shows</Text><Text style={styles.text}>{detailText}</Text></View>
+      <Button title="Back to secure sign in" variant="secondary" onPress={onExit}/>
+    </ScrollView>
+  );
+}
 export default function App() {
   const [user, setUser] = useState<User | null>(null),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [info, setInfo] = useState(""),
+    [demoMode, setDemoMode] = useState(false),
     [email, setEmail] = useState(""),
     [link, setLink] = useState(""),
     [tab, setTab] = useState("Visits"),
@@ -397,6 +431,8 @@ export default function App() {
               <Image source={require("./assets/icon.png")} resizeMode="contain" style={{ width: 136, height: 136, borderRadius: 30 }} accessibilityLabel="AniProTech" />
               <ActivityIndicator color={colours.cyanBright} />
             </View>
+          ) : !user && demoMode ? (
+            <ProductTour onExit={()=>setDemoMode(false)} />
           ) : !user ? (
             <ScrollView
               keyboardShouldPersistTaps="handled"
@@ -440,6 +476,8 @@ export default function App() {
                 disabled={busy || !link.trim()}
                 onPress={() => void signIn(link)}
               />
+              <Text style={styles.muted}>Want to see how Caremonitor works before signing in?</Text>
+              <Button title="Explore product tour" variant="secondary" disabled={busy} onPress={()=>{setError("");setInfo("");setDemoMode(true);}} />
               {__DEV__ && (
                 <Text style={styles.muted}>Development server: {API_URL}</Text>
               )}
