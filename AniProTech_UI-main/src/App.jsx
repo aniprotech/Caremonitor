@@ -70,7 +70,7 @@ import ClientCarerFeedIndex from "./pages/Clients/ViewClients/CarerFeed/CarerFee
 import ClientsCalendarIndex from "./pages/Clients/ViewClients/Calendar/ClientsCalendarIndex";
 import ClientPortal from "./pages/Portal/ClientPortal";
 import PublicInfoPage from "./pages/Public/PublicInfoPage";
-import PublicHomePage from "./pages/Public/PublicHomePage";
+import RootLanding from "./components/Common/RootLanding";
 import PublicPlatformPage from "./pages/Public/PublicPlatformPage";
 import PublicContentPage from "./pages/Public/PublicContentPage";
 import ClientsCareTeamIndex from "./pages/Clients/ViewClients/Clients/ClientsCareTeamIndex";
@@ -122,7 +122,7 @@ import CreateCareCircle from "./pages/Clients/ViewClients/CareCircle/CreateCareC
 import AddMedicationForm from "./pages/Clients/ViewClients/Medication/AddMedicationForm";
 
 const router = createBrowserRouter([
-    { path: "/", element: <PublicHomePage /> },
+    { path: "/", element: <RootLanding /> },
     { path: "/platform/:product", element: <PublicPlatformPage /> },
     { path: "/products", element: <PublicContentPage page="products" /> },
     { path: "/solutions", element: <PublicContentPage page="solutions" /> },
