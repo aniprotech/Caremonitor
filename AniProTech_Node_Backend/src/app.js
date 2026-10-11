@@ -45,6 +45,7 @@ import { registerPlatformAdmin } from "./services/platform-admin.js";
 import { registerPrivacy, registerSecurity } from "./services/security.js";
 import { postcodeValid } from "./location.js";
 import { registerGovernance } from "./services/governance.js";
+import { publicNhsJwks } from "./services/nhs-jwks.js";
 
 export function createApp({ db, config, mail = createMail(config), pushTransport }) {
   const app = express(),
@@ -85,6 +86,17 @@ export function createApp({ db, config, mail = createMail(config), pushTransport
     return res.json({ status: "UP", service: "aniprotech-express" });
   };
   app.get("/api/health", health);
+  // NHS application-restricted APIs use the public half of this RSA key to
+  // verify client assertions. The private JWK remains an encrypted Railway
+  // variable and is never returned by this endpoint.
+  app.get("/.well-known/jwks.json", (req, res) => {
+    try {
+      const jwks = publicNhsJwks(config);
+      return jwks ? res.json(jwks) : res.status(503).json({ message: "NHS signing key is not configured" });
+    } catch {
+      return res.status(503).json({ message: "NHS signing key is invalid" });
+    }
+  });
   app.get("/api/mobile/version", (req,res) => reply(res, {latestPublishedVersion:/^\d+\.\d+\.\d+$/.test(config.mobileLatestPublishedVersion||"")?config.mobileLatestPublishedVersion:""}));
   app.get("/health", health);
   app.get("/actuator/health", health);

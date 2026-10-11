@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { searchNorthernIrelandHospitals, searchOdsHospitals, searchOdsTerminologyHospitals, searchScottishHospitals, suggestHistoryTerms } from "../src/services/clinical-catalog.js";
+import { searchNorthernIrelandHospitals, searchOdsHospitals, searchOdsOrganisations, searchOdsTerminologyHospitals, searchOdsTerminologyOrganisations, searchScottishHospitals, suggestHistoryTerms } from "../src/services/clinical-catalog.js";
 import { searchDmdMedicines } from "../src/services/nhs-terminology.js";
 
 test("hospital search finds coded NHS sites even when their names omit hospital", async () => {
@@ -11,7 +11,22 @@ test("hospital search finds coded NHS sites even when their names omit hospital"
     return { ok: true, json: async () => ({ Organisations: [{ Name: "Queen Victoria", OrgId: "ABC01", PostCode: "AB1 2CD" }] }) };
   };
   try {
-    assert.deepEqual(await searchOdsHospitals("Queen"), [{ name: "Queen Victoria", source: "NHS ODS site", code: "ABC01", postcode: "AB1 2CD" }]);
+    assert.deepEqual(await searchOdsHospitals("Queen"), [{ name: "Queen Victoria", source: "NHS ODS", code: "ABC01", postcode: "AB1 2CD" }]);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("ODS GP and pharmacy searches use their specific organisation roles", async () => {
+  const originalFetch = globalThis.fetch;
+  const roles = [];
+  globalThis.fetch = async url => {
+    const request = new URL(url);
+    roles.push(request.searchParams.get("Roles"));
+    return { ok: true, json: async () => ({ Organisations: [{ Name: "Example organisation", OrgId: "A1234", PostCode: "CV5 8NY", Address1: "40 Madeira Croft", TelephoneNumber: "024 0000 0000" }] }) };
+  };
+  try {
+    assert.equal((await searchOdsOrganisations("Example", "gp_practice"))[0].code, "A1234");
+    assert.equal((await searchOdsOrganisations("Example", "pharmacy"))[0].address, "40 Madeira Croft, CV5 8NY");
+    assert.deepEqual(roles, ["RO177,RO76,RO315", "RO182,RO280"]);
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -33,6 +48,26 @@ test("ODS Terminology search uses the FHIR endpoint when an API key is configure
   };
   try {
     assert.deepEqual(await searchOdsTerminologyHospitals("Queen"), [{ name: "Queen Victoria", source: "NHS ODS Terminology", code: "ABC01", postcode: "AB1 2CD" }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.NHS_ODS_API_KEY; else process.env.NHS_ODS_API_KEY = originalKey;
+    if (originalBaseUrl === undefined) delete process.env.NHS_ODS_FHIR_BASE_URL; else process.env.NHS_ODS_FHIR_BASE_URL = originalBaseUrl;
+  }
+});
+
+test("ODS Terminology GP searches retain coded contact details", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.NHS_ODS_API_KEY;
+  const originalBaseUrl = process.env.NHS_ODS_FHIR_BASE_URL;
+  process.env.NHS_ODS_API_KEY = "test-api-key";
+  process.env.NHS_ODS_FHIR_BASE_URL = "https://sandbox.example/fhir";
+  globalThis.fetch = async url => {
+    const request = new URL(url);
+    assert.equal(request.searchParams.get("activeRoleCode"), "RO177,RO76,RO315");
+    return { ok: true, json: async () => ({ entry: [{ resource: { resourceType: "Organization", id: "A1234", name: "Example GP", address: [{ line: ["1 High Street"], city: "Coventry", postalCode: "CV5 8NY" }], telecom: [{ system: "phone", value: "024 0000 0000" }] } }] }) };
+  };
+  try {
+    assert.deepEqual(await searchOdsTerminologyOrganisations("Example", "gp_practice"), [{ name: "Example GP", source: "NHS ODS Terminology", code: "A1234", postcode: "CV5 8NY", address: "1 High Street, Coventry, CV5 8NY", phone: "024 0000 0000" }]);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.NHS_ODS_API_KEY; else process.env.NHS_ODS_API_KEY = originalKey;

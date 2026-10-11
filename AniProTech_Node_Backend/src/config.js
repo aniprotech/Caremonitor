@@ -46,6 +46,8 @@ export function configuration(overrides = {}) {
     saltEdgeSecret: process.env.SALT_EDGE_SECRET,
     saltEdgeCallbackUri: process.env.SALT_EDGE_CALLBACK_URI ||
       "https://backend.aniprotech.com/api/accounting/banking/salt-edge/callback",
+    nhsPrivateJwk: process.env.NHS_PRIVATE_JWK,
+    nhsJwksKeyId: process.env.NHS_JWKS_KEY_ID,
     shareAccessUrl:
       process.env.SHARE_ACCESS_URL ||
       (production

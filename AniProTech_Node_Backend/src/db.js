@@ -168,7 +168,9 @@ export async function initializeSchema(db) {
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_reference text");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_date date");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_expiry date");
-    await db.query("CREATE TABLE IF NOT EXISTS node_clinical_terms (id uuid PRIMARY KEY, agency_id uuid NOT NULL, kind text NOT NULL CHECK(kind IN ('history','medicine','hospital')), name text NOT NULL, created_by uuid NOT NULL, created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+    await db.query("CREATE TABLE IF NOT EXISTS node_clinical_terms (id uuid PRIMARY KEY, agency_id uuid NOT NULL, kind text NOT NULL CHECK(kind IN ('history','medicine','hospital','gp_practice','pharmacy')), name text NOT NULL, created_by uuid NOT NULL, created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)");
+    await db.query("ALTER TABLE node_clinical_terms DROP CONSTRAINT IF EXISTS node_clinical_terms_kind_check");
+    await db.query("ALTER TABLE node_clinical_terms ADD CONSTRAINT node_clinical_terms_kind_check CHECK(kind IN ('history','medicine','hospital','gp_practice','pharmacy'))");
     await db.query("CREATE UNIQUE INDEX IF NOT EXISTS node_clinical_terms_unique ON node_clinical_terms (agency_id,kind,lower(name))");
     await db.query(
       "CREATE TABLE IF NOT EXISTS node_login_links (id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, secret_hash text NOT NULL, expires_at timestamp NOT NULL, used_at timestamp)",

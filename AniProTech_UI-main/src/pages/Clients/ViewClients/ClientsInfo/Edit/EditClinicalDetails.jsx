@@ -74,12 +74,15 @@ const EditClinicalDetails = () => {
             >
                 <h2 className="poppins-medium text-xl text-customDefaultTextColor">Doctor/GP</h2>
 
-                <TextField
+                <ClinicalAutocomplete
                     label={`${clientName}'s GP practice name`}
-                    name="clinicalDetails.gpPracticeName"
-                    type="text"
+                    kind="gp_practice"
                     value={clinicalDetails.gpPracticeName || ""}
-                    valueChange={(e) => setFieldValue("clinicalDetails.gpPracticeName", e.target.value)}
+                    onChange={(value, term) => {
+                        setFieldValue("clinicalDetails.gpPracticeName", value);
+                        if (term?.code) setFieldValue("clinicalDetails.gpPracticeIdentifier", term.code);
+                        if (term?.phone) setFieldValue("clinicalDetails.gpPhoneNumber", term.phone);
+                    }}
                 />
 
                 <TextField
@@ -114,12 +117,16 @@ const EditClinicalDetails = () => {
             >
                 <h2 className="poppins-medium text-xl text-customDefaultTextColor">Pharmacist</h2>
 
-                <TextField
+                <ClinicalAutocomplete
                     label={`${clientName}'s pharmacy name`}
-                    name="clinicalDetails.pharmacyName"
-                    type="text"
+                    kind="pharmacy"
                     value={clinicalDetails.pharmacyName || ""}
-                    valueChange={(e) => setFieldValue("clinicalDetails.pharmacyName", e.target.value)}
+                    onChange={(value, term) => {
+                        setFieldValue("clinicalDetails.pharmacyName", value);
+                        if (term?.phone) setFieldValue("clinicalDetails.pharmacyPhoneNumber", term.phone);
+                        if (term?.address) setFieldValue("clinicalDetails.pharmacyAddress", term.address);
+                        if (term?.postcode) setFieldValue("clinicalDetails.pharmacyPostCode", term.postcode);
+                    }}
                 />
 
                 <PhoneNumberField
