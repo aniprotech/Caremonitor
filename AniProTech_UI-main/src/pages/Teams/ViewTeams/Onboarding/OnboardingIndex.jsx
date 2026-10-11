@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import useScrollToTop from "../../../../hooks/useScrollToTop";
 import { useNavigationHelpers } from "../../../../hooks/useNavigationHelpers";
 import { fetchData } from "../../../../utils/FetchData";
-import { _get } from "../../../../utils/ApiService";
+import { _get, _put } from "../../../../utils/ApiService";
 import APIConfig from "../../../../utils/ApiConfig";
 import DotLoader from "../../../../components/Loader/DotLoader";
 import { FileClock, Pencil } from "lucide-react";
@@ -15,10 +15,13 @@ const OnboardingIndex = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [readiness, setReadiness] = useState(null);
+    const [recruitment, setRecruitment] = useState(null);
+    const [recruitmentBusy, setRecruitmentBusy] = useState(false);
 
     useEffect(() => {
         fetchData(() => _get(APIConfig.TEAMS.TEAM_ONBOARDING_GET_BY_ID(id)), setData, setLoading, null);
         _get(`/api/team/${id}/readiness`).then((response) => setReadiness(response.data.results.data)).catch(() => setReadiness(null));
+        _get(`/api/team/${id}/recruitment`).then((response) => setRecruitment(response.data.results.data)).catch(() => setRecruitment(null));
     }, [id]);
 
     useScrollToTop();
@@ -27,6 +30,14 @@ const OnboardingIndex = () => {
         navigate(`/admin/teams/${id}/onboarding/edit`, {
             state: { data },
         });
+    };
+    const updateRecruitment = async (stage) => {
+        if (!recruitment || recruitmentBusy) return;
+        setRecruitmentBusy(true);
+        try {
+            const response = await _put(`/api/team/${id}/recruitment`, { stage, notes: recruitment.notes || "" });
+            setRecruitment(response.data.results.data);
+        } finally { setRecruitmentBusy(false); }
     };
 
     if (loading) {
@@ -65,6 +76,7 @@ const OnboardingIndex = () => {
                     {!!readiness.training?.length && <div className="mt-4 border-t border-current/10 pt-3"><h3 className="font-semibold">Training and competency</h3><p className="mt-1 text-sm">Certificates require a manager decision before they count as approved. Roster blocking is applied only to courses marked mandatory for rostering by your organisation.</p><div className="mt-3 grid gap-2 md:grid-cols-2">{readiness.training.map((item) => <div key={item.kind} className="flex items-center justify-between rounded bg-white/70 px-3 py-2 text-sm"><span>{item.kind}{item.blocksRoster ? " · roster required" : ""}</span><span className="font-semibold">{item.status.replaceAll("_", " ")}{item.expiresAt ? ` · ${item.expiresAt}` : ""}</span></div>)}</div></div>}
                 </section>
             )}
+            {recruitment && <section className="mb-6 rounded-lg border bg-white p-5" aria-label="Recruitment workflow"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Recruitment and approval</h2><p className="text-sm text-gray-600">Track invitation, application, references, document review and the final manager decision.</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold">{recruitment.stage.replaceAll("_", " ")}</span></div><div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]"><textarea value={recruitment.notes || ""} onChange={(event) => setRecruitment({ ...recruitment, notes: event.target.value })} maxLength={2000} placeholder="Recruitment notes, reference outcome or approval reason" className="min-h-20 rounded border p-2 text-sm" /><select value={recruitment.stage} disabled={recruitmentBusy} onChange={(event) => updateRecruitment(event.target.value)} className="rounded border px-3 py-2 text-sm"><option value="INVITED">Invited</option><option value="APPLIED">Applied</option><option value="REFERENCES_CHECK">References check</option><option value="DOCUMENT_REVIEW">Document review</option><option value="APPROVED">Approved</option><option value="DECLINED">Declined</option></select></div><button disabled={recruitmentBusy} onClick={() => updateRecruitment(recruitment.stage)} className="mt-3 rounded border border-customNavy px-3 py-2 text-sm font-semibold">{recruitmentBusy ? "Saving…" : "Save recruitment notes"}</button></section>}
             <div>
                 <Section
                     title="Employment"

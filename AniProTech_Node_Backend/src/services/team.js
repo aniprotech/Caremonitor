@@ -255,6 +255,25 @@ export function registerTeam(ctx, route) {
       checkedAt: new Date().toISOString(),
     });
   });
+  route("GET", "/api/team/:userId/recruitment", async (req, res) => {
+    await auth.userAccess(req, req.params.userId, { staff: true });
+    const row = (await db.query(`SELECT stage,notes,decided_at AS "decidedAt",updated_at AS "updatedAt" FROM node_staff_recruitment WHERE staff_id=$1 AND agency_id=$2`,[req.params.userId,req.user.agencyId])).rows[0];
+    // Existing staff predating this workflow remain operational; new recruitment
+    // records begin at Invited when a manager starts the process.
+    return reply(res,row || { stage: "APPROVED", notes: "Legacy staff record", legacy: true });
+  });
+  route("PUT", "/api/team/:userId/recruitment", async (req, res) => {
+    await auth.userAccess(req, req.params.userId, { staff: true, write: true });
+    const stages = ["INVITED","APPLIED","REFERENCES_CHECK","DOCUMENT_REVIEW","APPROVED","DECLINED"];
+    const stage = String(req.body.stage || "");
+    const notes = req.body.notes == null ? null : String(req.body.notes).trim();
+    if (!stages.includes(stage) || (notes && notes.length > 2000)) fail(400,"Choose a valid recruitment stage and enter notes of up to 2,000 characters");
+    const row = await db.query(`INSERT INTO node_staff_recruitment(staff_id,agency_id,stage,notes,decided_by,decided_at,updated_by)
+      VALUES($1,$2,$3,$4,CASE WHEN $3 IN ('APPROVED','DECLINED') THEN $5::uuid END,CASE WHEN $3 IN ('APPROVED','DECLINED') THEN CURRENT_TIMESTAMP END,$5)
+      ON CONFLICT(staff_id) DO UPDATE SET stage=EXCLUDED.stage,notes=EXCLUDED.notes,decided_by=EXCLUDED.decided_by,decided_at=EXCLUDED.decided_at,updated_by=EXCLUDED.updated_by,updated_at=CURRENT_TIMESTAMP
+      RETURNING stage,notes,decided_at AS "decidedAt",updated_at AS "updatedAt"`,[req.params.userId,req.user.agencyId,stage,notes||null,req.user.id]);
+    return reply(res,row.rows[0],"Recruitment workflow updated");
+  });
   route(
     "POST",
     "/api/team-onboarding/update/:userId",

@@ -45,6 +45,12 @@ export async function initializeGovernance(db) {
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(agency_id,kind)
   )`);
+  await db.query(`CREATE TABLE IF NOT EXISTS node_staff_recruitment (
+    staff_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, agency_id uuid NOT NULL,
+    stage text NOT NULL CHECK(stage IN ('INVITED','APPLIED','REFERENCES_CHECK','DOCUMENT_REVIEW','APPROVED','DECLINED')),
+    notes text, decided_by uuid REFERENCES users(id), decided_at timestamptz,
+    updated_by uuid REFERENCES users(id), updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
   await db.query(`CREATE TABLE IF NOT EXISTS node_credential_decisions (
     id uuid PRIMARY KEY, credential_id uuid NOT NULL REFERENCES node_staff_credentials(id) ON DELETE CASCADE,
     decision text NOT NULL CHECK(decision IN ('APPROVED','REJECTED')), reason text NOT NULL,
@@ -139,6 +145,7 @@ export async function initializeGovernance(db) {
     "CREATE INDEX IF NOT EXISTS node_quality_cases_agency ON node_quality_cases(agency_id,status,due_at)",
     "CREATE INDEX IF NOT EXISTS node_credentials_agency ON node_staff_credentials(agency_id,expires_at)",
     "CREATE INDEX IF NOT EXISTS node_training_requirements_agency ON node_training_requirements(agency_id,mandatory)",
+    "CREATE INDEX IF NOT EXISTS node_staff_recruitment_agency ON node_staff_recruitment(agency_id,stage)",
     "CREATE INDEX IF NOT EXISTS node_ai_reviews_agency ON node_ai_reviews(agency_id,status,created_at)",
     "CREATE INDEX IF NOT EXISTS node_portal_messages_grant ON node_portal_messages(grant_id,created_at)"
     ,"CREATE INDEX IF NOT EXISTS node_governance_evidence_entity ON node_governance_evidence(agency_id,entity_type,entity_id)"

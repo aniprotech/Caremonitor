@@ -139,6 +139,9 @@ export function registerRoster(ctx, route) {
       if (!staff.isActive || staff.deletedAt)
         fail(400, "Choose an active staff member");
       if (v.status === "SCHEDULED") {
+        const recruitment = (await db.query(`SELECT stage FROM node_staff_recruitment WHERE staff_id=$1 AND agency_id=$2`,[v.staffId,req.user.agencyId])).rows[0];
+        if (recruitment && recruitment.stage !== "APPROVED")
+          fail(409, "This caregiver is not rosterable until their recruitment workflow is approved");
         const invalidCredential = (await db.query(
           `SELECT 1 FROM node_staff_credentials WHERE agency_id=$1 AND staff_id=$2
            AND (status IN ('SUSPENDED','REVOKED') OR (expires_at IS NOT NULL AND expires_at<CURRENT_DATE)) LIMIT 1`,
