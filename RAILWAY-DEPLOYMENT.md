@@ -11,6 +11,14 @@ Create one Railway project with two services connected to the Git repository.
 - Add Railway PostgreSQL and use its `DATABASE_URL`.
 - Set `NODE_ENV=production`, `DB_DRIVER=postgres`, `HOST=0.0.0.0`, `FRONTEND_URL=https://caremonitor.aniprotech.com`, `CORS_ORIGINS=https://caremonitor.aniprotech.com`, `TRUST_PROXY=true`, a random `JWT_SECRET` of at least 32 characters, `PLATFORM_ADMIN_EMAILS=info@aniprotech.com`, and the Gmail API variables (`MAIL_MODE=gmail`, `GMAIL_SENDER`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`).
 - Mount a persistent volume at `UPLOAD_DIR`, or configure durable object storage before live file uploads.
+- For NHS application-restricted APIs, set `NHS_CLIENT_ID` to the API key from
+  the NHS developer portal, plus `NHS_PRIVATE_JWK`, `NHS_JWKS_KEY_ID` and the
+  appropriate `NHS_TOKEN_URL`. The registered public-key URL serves only the
+  public key; never place the private JWK in the frontend.
+- For Salt Edge banking, set `SALT_EDGE_APP_ID` and `SALT_EDGE_SECRET`, then
+  register `https://backend.aniprotech.com/api/accounting/banking/salt-edge/callback`
+  in the Salt Edge client dashboard. Caremonitor requests automatic refresh
+  where the bank and the customer's consent allow it.
 
 ## Dashboard service
 

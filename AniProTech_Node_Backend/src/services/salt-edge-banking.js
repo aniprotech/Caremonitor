@@ -105,7 +105,11 @@ export function registerSaltEdgeBanking(ctx, route) {
         provider: { include_sandboxes: true },
         return_connection_id: true,
         return_error_class: true,
-        automatic_refresh: false,
+        // Ask Salt Edge to refresh when the selected provider and the user's
+        // consent permit it.  Providers can still require a later reconnect;
+        // the connection status returned to the accounting screen makes that
+        // visible instead of silently treating data as current.
+        automatic_refresh: true,
       });
       const connectUrl = response.data?.connect_url;
       if (!connectUrl || new URL(connectUrl).origin !== "https://www.saltedge.com") throw new Error("Invalid Salt Edge connect URL");

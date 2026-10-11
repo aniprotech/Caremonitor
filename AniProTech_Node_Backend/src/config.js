@@ -48,6 +48,8 @@ export function configuration(overrides = {}) {
       "https://backend.aniprotech.com/api/accounting/banking/salt-edge/callback",
     nhsPrivateJwk: process.env.NHS_PRIVATE_JWK,
     nhsJwksKeyId: process.env.NHS_JWKS_KEY_ID,
+    nhsClientId: process.env.NHS_CLIENT_ID,
+    nhsTokenUrl: process.env.NHS_TOKEN_URL || "https://sandbox.api.service.nhs.uk/oauth2/token",
     shareAccessUrl:
       process.env.SHARE_ACCESS_URL ||
       (production

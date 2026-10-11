@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { reply, fail } from "../http.js";
 import { searchDmdMedicines } from "./nhs-terminology.js";
 import { addSharedOption } from "./shared-options.js";
+import { nhsApplicationToken } from "./nhs-auth.js";
 
 const kinds = new Set(["history", "medicine", "hospital", "gp_practice", "pharmacy"]);
 // A short, neutral reference list for recording care-relevant history. These
@@ -123,19 +124,23 @@ export const searchOdsHospitals = query => searchOdsOrganisations(query, "hospit
 // ODS now recommends its FHIR R4 Terminology API for new integrations.  It is
 // application-restricted, so retain the public ORD search as a safe fallback
 // until a production API key has been configured for this deployment.
-export async function searchOdsTerminologyOrganisations(query, kind = "hospital") {
+export async function searchOdsTerminologyOrganisations(query, kind = "hospital", config = {}) {
   const roles = organisationRoles[kind];
   if (!roles) throw new Error("Unknown organisation search");
-  const apiKey = process.env.NHS_ODS_API_KEY;
-  if (!apiKey) throw new Error("ODS Terminology API is not configured");
+  const apiKey = config.nhsOdsApiKey || process.env.NHS_ODS_API_KEY;
+  const canUseSignedJwt = config.nhsClientId && config.nhsPrivateJwk && config.nhsJwksKeyId;
+  if (!apiKey && !canUseSignedJwt) throw new Error("ODS Terminology API is not configured");
   const baseUrl = process.env.NHS_ODS_FHIR_BASE_URL || odsTerminologyBaseUrl;
   const url = new URL(`${baseUrl.replace(/\/$/, "")}/Organization`);
   url.searchParams.set("name:contains", query);
   url.searchParams.set("active", "true");
   url.searchParams.set("activeRoleCode", roles);
   url.searchParams.set("_count", "100");
+  const headers = { Accept: "application/fhir+json" };
+  if (apiKey) headers.apikey = apiKey;
+  else headers.Authorization = `Bearer ${await nhsApplicationToken(config)}`;
   const response = await fetch(url, {
-    headers: { Accept: "application/fhir+json", apikey: apiKey },
+    headers,
     signal: AbortSignal.timeout(4500),
   });
   if (!response.ok) throw new Error("ODS Terminology search unavailable");
@@ -160,7 +165,7 @@ export async function searchScottishHospitals(query) {
     .map(record => ({ name: record.HospitalName, source: "NHS Scotland", code: record.HospitalCode, postcode: record.Postcode }));
 }
 
-export function registerClinicalCatalog({ db, auth }, route) {
+export function registerClinicalCatalog({ db, auth, config = {} }, route) {
   route("GET", "/api/clinical-catalog", async (req, res) => {
     const kind = req.query.kind;
     if (!kinds.has(kind)) fail(400, "Unknown clinical list");
@@ -181,7 +186,9 @@ export function registerClinicalCatalog({ db, auth }, route) {
       choices.push({ name: row.name, source: "Organisation" });
     if (kind === "history") for (const name of suggestHistoryTerms(query)) if (!choices.some(c => c.name.toLowerCase() === name.toLowerCase())) choices.push({ name, source: "Suggested term" });
     if (["hospital", "gp_practice", "pharmacy"].includes(kind) && query.length >= 3) {
-      const searchOds = process.env.NHS_ODS_API_KEY ? searchOdsTerminologyOrganisations(query, kind) : searchOdsOrganisations(query, kind);
+      const hasNhsCredentials = process.env.NHS_ODS_API_KEY || config.nhsOdsApiKey ||
+        (config.nhsClientId && config.nhsPrivateJwk && config.nhsJwksKeyId);
+      const searchOds = hasNhsCredentials ? searchOdsTerminologyOrganisations(query, kind, config) : searchOdsOrganisations(query, kind);
       const searches = [searchOds];
       if (kind === "hospital") searches.push(searchScottishHospitals(query));
       const results = await Promise.allSettled(searches);

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { searchNorthernIrelandHospitals, searchOdsHospitals, searchOdsOrganisations, searchOdsTerminologyHospitals, searchOdsTerminologyOrganisations, searchScottishHospitals, suggestHistoryTerms } from "../src/services/clinical-catalog.js";
 import { searchDmdMedicines } from "../src/services/nhs-terminology.js";
+import { generateKeyPairSync } from "node:crypto";
+import { clearNhsTokenCache } from "../src/services/nhs-auth.js";
 
 test("hospital search finds coded NHS sites even when their names omit hospital", async () => {
   const originalFetch = globalThis.fetch;
@@ -72,6 +74,31 @@ test("ODS Terminology GP searches retain coded contact details", async () => {
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.NHS_ODS_API_KEY; else process.env.NHS_ODS_API_KEY = originalKey;
     if (originalBaseUrl === undefined) delete process.env.NHS_ODS_FHIR_BASE_URL; else process.env.NHS_ODS_FHIR_BASE_URL = originalBaseUrl;
+  }
+});
+
+test("ODS Terminology can use the registered NHS private key instead of an API key", async () => {
+  const originalFetch = globalThis.fetch;
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const config = { nhsClientId: "test-client", nhsPrivateJwk: JSON.stringify(privateKey.export({ format: "jwk" })),
+    nhsJwksKeyId: "test-1", nhsTokenUrl: "https://auth.example/oauth2/token", nhsOdsApiKey: "" };
+  let calls = 0;
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    if (calls === 1) {
+      assert.equal(url, config.nhsTokenUrl);
+      assert.equal(options.body.get("grant_type"), "client_credentials");
+      return { ok: true, json: async () => ({ access_token: "test-token", expires_in: 300 }) };
+    }
+    assert.equal(options.headers.Authorization, "Bearer test-token");
+    return { ok: true, json: async () => ({ entry: [{ resource: { resourceType: "Organization", id: "ABC01", name: "Example Hospital", address: [{ postalCode: "CV1 1AA" }] } }] }) };
+  };
+  try {
+    assert.equal((await searchOdsTerminologyOrganisations("Example", "hospital", config))[0].code, "ABC01");
+    assert.equal(calls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearNhsTokenCache();
   }
 });
 

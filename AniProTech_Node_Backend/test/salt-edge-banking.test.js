@@ -44,6 +44,7 @@ test("Salt Edge keeps banking data within its organisation and rejects callback 
         const data = JSON.parse(options.body).data;
         assert.equal(data.customer_id, customerId);
         assert.deepEqual(data.consent.scopes, ["accounts", "transactions"]);
+        assert.equal(data.automatic_refresh, true);
         state = new URL(data.attempt.return_to).searchParams.get("state");
         return Response.json({ data: { connect_url: "https://www.saltedge.com/connect?token=test-token" } });
       }
