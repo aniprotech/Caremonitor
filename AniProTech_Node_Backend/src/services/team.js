@@ -235,13 +235,23 @@ export function registerTeam(ctx, route) {
     const inThirtyDays = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
     const expired = credentials.filter((item) => item.status !== "VALID" || (item.expiresAt && item.expiresAt < today));
     const expiring = credentials.filter((item) => item.status === "VALID" && item.expiresAt && item.expiresAt >= today && item.expiresAt <= inThirtyDays);
-    const status = missing.length || expired.length ? "NOT_READY" : expiring.length ? "ATTENTION" : "READY";
+    const requirements = (await db.query(`SELECT kind,mandatory,blocks_roster AS "blocksRoster" FROM node_training_requirements WHERE agency_id=$1`,[req.user.agencyId])).rows;
+    const normalise = (value) => String(value || "").trim().toLowerCase();
+    const training = requirements.filter((item) => item.mandatory).map((item) => {
+      const record = credentials.find((credential) => normalise(credential.kind) === normalise(item.kind));
+      const valid = record && record.status === "VALID" && (!record.expiresAt || record.expiresAt >= today);
+      return { ...item, status: valid ? (record.expiresAt && record.expiresAt <= inThirtyDays ? "EXPIRING" : "APPROVED") : record?.status === "PENDING_REVIEW" ? "PENDING_REVIEW" : record?.expiresAt && record.expiresAt < today ? "EXPIRED" : "MISSING", expiresAt: record?.expiresAt || null };
+    });
+    const trainingBlocking = training.filter((item) => item.blocksRoster && !["APPROVED","EXPIRING"].includes(item.status));
+    const status = missing.length || expired.length || trainingBlocking.length ? "NOT_READY" : expiring.length || training.some((item) => item.status !== "APPROVED") ? "ATTENTION" : "READY";
     return reply(res, {
       status,
-      canRoster: status !== "NOT_READY",
+      canRoster: !missing.length && !expired.length && !trainingBlocking.length,
       missing,
       expired,
       expiring,
+      training,
+      trainingBlocking,
       checkedAt: new Date().toISOString(),
     });
   });

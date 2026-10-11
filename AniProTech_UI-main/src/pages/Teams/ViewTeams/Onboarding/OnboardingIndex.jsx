@@ -62,6 +62,7 @@ const OnboardingIndex = () => {
                     {!!readiness.missing.length && <p className="mt-3 text-sm"><b>Missing:</b> {readiness.missing.join(", ")}</p>}
                     {!!readiness.expired.length && <p className="mt-2 text-sm"><b>Expired or inactive:</b> {readiness.expired.map((item) => item.kind).join(", ")}</p>}
                     {!!readiness.expiring.length && <p className="mt-2 text-sm"><b>Due in the next 30 days:</b> {readiness.expiring.map((item) => `${item.kind} (${item.expiresAt})`).join(", ")}</p>}
+                    {!!readiness.training?.length && <div className="mt-4 border-t border-current/10 pt-3"><h3 className="font-semibold">Training and competency</h3><p className="mt-1 text-sm">Certificates require a manager decision before they count as approved. Roster blocking is applied only to courses marked mandatory for rostering by your organisation.</p><div className="mt-3 grid gap-2 md:grid-cols-2">{readiness.training.map((item) => <div key={item.kind} className="flex items-center justify-between rounded bg-white/70 px-3 py-2 text-sm"><span>{item.kind}{item.blocksRoster ? " · roster required" : ""}</span><span className="font-semibold">{item.status.replaceAll("_", " ")}{item.expiresAt ? ` · ${item.expiresAt}` : ""}</span></div>)}</div></div>}
                 </section>
             )}
             <div>

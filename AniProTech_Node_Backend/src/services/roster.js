@@ -141,11 +141,23 @@ export function registerRoster(ctx, route) {
       if (v.status === "SCHEDULED") {
         const invalidCredential = (await db.query(
           `SELECT 1 FROM node_staff_credentials WHERE agency_id=$1 AND staff_id=$2
-           AND (status<>'VALID' OR (expires_at IS NOT NULL AND expires_at<CURRENT_DATE)) LIMIT 1`,
+           AND (status IN ('SUSPENDED','REVOKED') OR (expires_at IS NOT NULL AND expires_at<CURRENT_DATE)) LIMIT 1`,
           [req.user.agencyId, v.staffId],
         )).rows.length > 0;
         if (invalidCredential)
           fail(409, "This caregiver has an expired or inactive credential and cannot be scheduled until it is resolved");
+        const unmetTraining = (await db.query(
+          `SELECT r.kind FROM node_training_requirements r
+           WHERE r.agency_id=$1 AND r.mandatory=true AND r.blocks_roster=true
+           AND NOT EXISTS (
+             SELECT 1 FROM node_staff_credentials c WHERE c.agency_id=r.agency_id AND c.staff_id=$2
+             AND lower(c.kind)=lower(r.kind) AND c.status='VALID'
+             AND (c.expires_at IS NULL OR c.expires_at>=CURRENT_DATE)
+           ) LIMIT 1`,
+          [req.user.agencyId, v.staffId],
+        )).rows[0];
+        if (unmetTraining)
+          fail(409, `This caregiver cannot be scheduled until mandatory training is approved: ${unmetTraining.kind}`);
       }
       const absences = await repo.find("TeamAbsenceEntity", {
         user: v.staffId,

@@ -32,10 +32,27 @@ export async function initializeGovernance(db) {
   await db.query(`CREATE TABLE IF NOT EXISTS node_staff_credentials (
     id uuid PRIMARY KEY, agency_id uuid NOT NULL, staff_id uuid NOT NULL REFERENCES users(id),
     kind text NOT NULL, reference text, issued_at date, expires_at date,
-    status text NOT NULL DEFAULT 'VALID' CHECK(status IN ('VALID','SUSPENDED','REVOKED')),
+    status text NOT NULL DEFAULT 'PENDING_REVIEW' CHECK(status IN ('PENDING_REVIEW','VALID','SUSPENDED','REVOKED')),
     evidence_url text, revision integer NOT NULL DEFAULT 1, created_by uuid NOT NULL REFERENCES users(id),
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+  // Requirements are owned by the organisation so managers can change the
+  // competency matrix without overwriting a caregiver's certificate history.
+  await db.query(`CREATE TABLE IF NOT EXISTS node_training_requirements (
+    id uuid PRIMARY KEY, agency_id uuid NOT NULL, kind text NOT NULL,
+    mandatory boolean NOT NULL DEFAULT true, blocks_roster boolean NOT NULL DEFAULT false,
+    renewal_months integer, created_by uuid REFERENCES users(id), updated_by uuid REFERENCES users(id),
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(agency_id,kind)
+  )`);
+  await db.query(`CREATE TABLE IF NOT EXISTS node_credential_decisions (
+    id uuid PRIMARY KEY, credential_id uuid NOT NULL REFERENCES node_staff_credentials(id) ON DELETE CASCADE,
+    decision text NOT NULL CHECK(decision IN ('APPROVED','REJECTED')), reason text NOT NULL,
+    decided_by uuid NOT NULL REFERENCES users(id), created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // Upgrade deployments created before pending manager review was introduced.
+  await db.query("ALTER TABLE node_staff_credentials DROP CONSTRAINT IF EXISTS node_staff_credentials_status_check");
+  await db.query("ALTER TABLE node_staff_credentials ADD CONSTRAINT node_staff_credentials_status_check CHECK(status IN ('PENDING_REVIEW','VALID','SUSPENDED','REVOKED'))");
   await db.query(`CREATE TABLE IF NOT EXISTS node_ai_reviews (
     id uuid PRIMARY KEY, agency_id uuid NOT NULL, client_id uuid NOT NULL REFERENCES users(id),
     kind text NOT NULL CHECK(kind IN ('NOTE_SUMMARY','RISK_SIGNAL')),
@@ -121,6 +138,7 @@ export async function initializeGovernance(db) {
   for (const sql of [
     "CREATE INDEX IF NOT EXISTS node_quality_cases_agency ON node_quality_cases(agency_id,status,due_at)",
     "CREATE INDEX IF NOT EXISTS node_credentials_agency ON node_staff_credentials(agency_id,expires_at)",
+    "CREATE INDEX IF NOT EXISTS node_training_requirements_agency ON node_training_requirements(agency_id,mandatory)",
     "CREATE INDEX IF NOT EXISTS node_ai_reviews_agency ON node_ai_reviews(agency_id,status,created_at)",
     "CREATE INDEX IF NOT EXISTS node_portal_messages_grant ON node_portal_messages(grant_id,created_at)"
     ,"CREATE INDEX IF NOT EXISTS node_governance_evidence_entity ON node_governance_evidence(agency_id,entity_type,entity_id)"
