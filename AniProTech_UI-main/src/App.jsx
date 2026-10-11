@@ -71,6 +71,7 @@ import ClientsCalendarIndex from "./pages/Clients/ViewClients/Calendar/ClientsCa
 import ClientPortal from "./pages/Portal/ClientPortal";
 import PublicInfoPage from "./pages/Public/PublicInfoPage";
 import RootLanding from "./components/Common/RootLanding";
+import DashboardIndex from "./pages/Dashboard/DashboardIndex";
 import PublicPlatformPage from "./pages/Public/PublicPlatformPage";
 import PublicContentPage from "./pages/Public/PublicContentPage";
 import ClientsCareTeamIndex from "./pages/Clients/ViewClients/Clients/ClientsCareTeamIndex";
@@ -150,6 +151,10 @@ const router = createBrowserRouter([
             </ProtectedRoute>
         ),
         children: [
+            {
+                path: "dashboard",
+                element: <DashboardIndex />,
+            },
             {
                 path: "clients",
                 element: <ClientIndex />,

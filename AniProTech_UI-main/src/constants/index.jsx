@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 export const navLinks = [
+    { path: "/admin/dashboard", label: "Dashboard" },
     { path: "/admin/clients", label: "Clients" },
     { path: "/admin/teams", label: "Team" },
     { path: "/admin/rosters", label: "Roster" },

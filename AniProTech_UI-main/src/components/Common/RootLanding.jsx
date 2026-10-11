@@ -7,6 +7,6 @@ import PublicHomePage from "../../pages/Public/PublicHomePage";
 // /login.
 export default function RootLanding() {
     return localStorage.getItem("access_token")
-        ? <Navigate to="/admin/teams" replace />
+        ? <Navigate to="/admin/dashboard" replace />
         : <PublicHomePage />;
 }

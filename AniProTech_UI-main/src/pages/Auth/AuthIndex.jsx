@@ -36,7 +36,7 @@ const AuthIndex = () => {
             try {
                 const decrypted = decryptData(accessToken);
                 if (isNotEmpty(decrypted)) {
-                    const from = location.state?.from?.pathname || "/admin/teams";
+                    const from = location.state?.from?.pathname || "/admin/dashboard";
                     navigate(from, { replace: true });
                 }
             } catch (e) {
@@ -94,7 +94,7 @@ const AuthIndex = () => {
 
                     await waitFor(1000);
                     setLoading(false);
-                    navigate("/admin/teams", { replace: true });
+                    navigate("/admin/dashboard", { replace: true });
                 } catch (error) {
                     localStorage.removeItem("access_token");
                     setUserData(null);
@@ -118,7 +118,7 @@ const AuthIndex = () => {
             localStorage.setItem("access_token", encryptData(result.accessToken));
             setUserData(result);
             setMfa(null);
-            navigate("/admin/teams", { replace: true });
+            navigate("/admin/dashboard", { replace: true });
         } catch (error) {
             showError(error?.response?.data?.message || "The authentication code was not accepted.");
         } finally { setLoading(false); }
