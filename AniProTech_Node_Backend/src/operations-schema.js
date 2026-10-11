@@ -3,8 +3,13 @@ export async function initializeOperations(db) {
     id uuid PRIMARY KEY,agency_id uuid NOT NULL,user_id uuid NOT NULL REFERENCES users(id),
     kind text NOT NULL CHECK(kind IN ('BILLING','PAY')),effective_from date NOT NULL,
     hourly_pence integer NOT NULL CHECK(hourly_pence>=0 AND hourly_pence<=1000000),
+    rate_unit text NOT NULL DEFAULT 'HOURLY',rate_pence integer,
     UNIQUE(user_id,kind,effective_from)
   )`);
+  await db.query(`ALTER TABLE node_rates
+    ADD COLUMN IF NOT EXISTS rate_unit text NOT NULL DEFAULT 'HOURLY',
+    ADD COLUMN IF NOT EXISTS rate_pence integer`);
+  await db.query("UPDATE node_rates SET rate_pence=hourly_pence WHERE rate_pence IS NULL");
   await db.query(`CREATE TABLE IF NOT EXISTS node_finance_documents (
     id uuid PRIMARY KEY,agency_id uuid NOT NULL,kind text NOT NULL CHECK(kind IN ('INVOICE','PAYRUN')),
     number integer NOT NULL,recipient_id uuid NOT NULL REFERENCES users(id),recipient_name text NOT NULL,
@@ -21,6 +26,7 @@ export async function initializeOperations(db) {
   )`);
   await db.query(`ALTER TABLE node_finance_lines
     ADD COLUMN IF NOT EXISTS component text NOT NULL DEFAULT 'CARE',
+    ADD COLUMN IF NOT EXISTS rate_unit text NOT NULL DEFAULT 'HOURLY',
     ADD COLUMN IF NOT EXISTS visit_revision integer NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS review_revision integer NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS travel_revision integer`);

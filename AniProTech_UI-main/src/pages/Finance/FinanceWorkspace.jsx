@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { _get, _post } from "../../utils/ApiService";
 import { Link } from "react-router-dom";
 import { Page, Field, ErrorBox, inputClass, buttonClass, londonToday, money, downloadCsv } from "../../components/Operations/common";
+const rateUnits = {
+    BILLING: [["HOURLY", "Per hour"], ["HALF_DAY", "Half day"], ["FULL_DAY", "Full day"], ["SESSION_3H", "Session (3 hours)"], ["SESSION_6H", "Session (6 hours)"], ["WEEKLY", "Per week"]],
+    PAY: [["HOURLY", "Per hour"], ["DAILY", "Per day"], ["WEEKLY", "Per week"], ["YEARLY", "Per year"]],
+};
+const rateUnitLabel = (unit) => Object.values(rateUnits).flat().find(([value]) => value === unit)?.[1] || "Per hour";
 export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
     const [tab, setTab] = useState(initialTab),
         [people, setPeople] = useState([]),
@@ -16,7 +21,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
         [busy, setBusy] = useState(false),
         [reload, setReload] = useState(0);
     const [reconciliation,setReconciliation]=useState(null),[credit,setCredit]=useState(null);
-    const [rate, setRate] = useState({ userId: "", kind: "BILLING", effectiveFrom: londonToday(), amount: "" });
+    const [rate, setRate] = useState({ userId: "", kind: "BILLING", rateUnit: "HOURLY", effectiveFrom: londonToday(), amount: "" });
     useEffect(() => {
         let active = true;
         setError("");
@@ -56,7 +61,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
     async function saveRate(e) {
         e.preventDefault();
         await run(async () => {
-            await _post("/api/finance/rates", { ...rate, hourlyPence: Math.round(Number(rate.amount) * 100) });
+            await _post("/api/finance/rates", { ...rate, ratePence: Math.round(Number(rate.amount) * 100) });
             setReload((n) => n + 1);
             setPreview(null);
         });
@@ -93,7 +98,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
         if (due > 0) return `${paid > 0 ? "PART PAID" : "UNPAID"} · ${money(due)} due`;
         return `${paid > 0 ? "PAID" : "CREDITED"} · ${money(due)} due`;
     };
-    const exportDocument=()=>run(async()=>{const result=(await _post(`/api/finance/documents/${detail.id}/export`,{format:"CSV"})).data.results.data;downloadCsv(documentName(detail)+".csv",[["Date","Type","Visit","Minutes","Hourly GBP","Amount GBP"],...result.lines.map(l=>[l.date,l.component,l.title,l.minutes,(l.hourlyPence/100).toFixed(2),(l.amountPence/100).toFixed(2)])]);setReconciliation(result.reconciliation)});
+    const exportDocument=()=>run(async()=>{const result=(await _post(`/api/finance/documents/${detail.id}/export`,{format:"CSV"})).data.results.data;downloadCsv(documentName(detail)+".csv",[["Date","Type","Visit","Minutes","Rate unit","Rate GBP","Amount GBP"],...result.lines.map(l=>[l.date,l.component,l.title,l.minutes,rateUnitLabel(l.rateUnit),(l.hourlyPence/100).toFixed(2),(l.amountPence/100).toFixed(2)])]);setReconciliation(result.reconciliation)});
     const transitionCredit=(item,status)=>run(async()=>{await _post(`/api/finance/credit-notes/${item.id}/status`,{expectedStatus:item.status,status});setReload(n=>n+1)});
     return (
         <Page
@@ -105,7 +110,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                 {[
                     ["INVOICE", "Client invoices"],
                     ["PAYRUN", "Staff pay"],
-                    ["RATES", "Hourly rates"],
+                    ["RATES", "Rate cards"],
                 ].map(([k, n]) => (
                     <button
                         key={k}
@@ -131,10 +136,15 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                             <select
                                 className={inputClass}
                                 value={rate.kind}
-                                onChange={(e) => setRate({ ...rate, kind: e.target.value, userId: "" })}
+                                onChange={(e) => { const kind=e.target.value; setRate({ ...rate, kind, rateUnit: "HOURLY", userId: "" }); }}
                             >
                                 <option value="BILLING">Client billing</option>
                                 <option value="PAY">Staff pay</option>
+                            </select>
+                        </Field>
+                        <Field label="Rate unit">
+                            <select className={inputClass} value={rate.rateUnit} onChange={(e) => setRate({ ...rate, rateUnit: e.target.value })}>
+                                {rateUnits[rate.kind].map(([value,label]) => <option key={value} value={value}>{label}</option>)}
                             </select>
                         </Field>
                         <Field label="Person">
@@ -166,7 +176,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                 onChange={(e) => setRate({ ...rate, effectiveFrom: e.target.value })}
                             />
                         </Field>
-                        <Field label="Hourly rate (GBP)">
+                        <Field label={`${rateUnitLabel(rate.rateUnit)} rate (GBP)`}>
                             <input
                                 required
                                 type="number"
@@ -186,14 +196,13 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                         </button>
                     </form>
                     <p className="text-xs text-gray-500">
-                        A new effective date preserves earlier rates. Saving the same person, type and date updates that rate. Existing document
-                        totals remain unchanged.
+                        Select a caregiver or client and set the date from which this rate applies. Finance automatically uses the latest applicable rate card when it previews a pay run or invoice. Saving the same person, type and date updates that rate; existing documents remain unchanged.
                     </p>
                     <div className="overflow-auto rounded-xl border bg-white">
                         <table className="w-full text-left text-sm">
                             <thead>
                                 <tr>
-                                    {["Person", "Type", "Effective from", "Per hour"].map((h) => (
+                                    {["Person", "Type", "Rate unit", "Effective from", "Rate", ""].map((h) => (
                                         <th
                                             className="p-3"
                                             key={h}
@@ -211,14 +220,16 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                     >
                                         <td className="p-3">{r.name}</td>
                                         <td className="p-3">{r.kind === "BILLING" ? "Client billing" : "Staff pay"}</td>
+                                        <td className="p-3">{rateUnitLabel(r.rateUnit)}</td>
                                         <td className="p-3">{r.effectiveFrom}</td>
-                                        <td className="p-3">{money(r.hourlyPence)}</td>
+                                        <td className="p-3">{money(r.ratePence ?? r.hourlyPence)}</td>
+                                        <td className="p-3"><button className="rounded border px-3 py-1" onClick={() => setRate({userId:r.userId,kind:r.kind,rateUnit:r.rateUnit || "HOURLY",effectiveFrom:r.effectiveFrom,amount:((r.ratePence ?? r.hourlyPence)/100).toFixed(2)})}>Edit</button></td>
                                     </tr>
                                 ))}
                                 {!rates.length && (
                                     <tr>
                                         <td
-                                            colSpan={4}
+                                            colSpan={6}
                                             className="p-8 text-center"
                                         >
                                             No rates set yet.
@@ -300,7 +311,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                 <table className="w-full text-left text-sm">
                                     <thead>
                                         <tr>
-                                            {["Date", "Visit", "Hours", "Hourly rate", "Amount"].map((h) => (
+                                            {["Date", "Visit", "Hours", "Rate unit", "Rate", "Amount"].map((h) => (
                                                 <th
                                                     className="p-2"
                                                     key={h}
@@ -319,6 +330,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                                 <td className="p-2">{l.date}</td>
                                                 <td className="p-2">{l.title}{l.component&&l.component!=="CARE"?<small className="block text-gray-500">{l.component.replaceAll("_"," ")}</small>:null}</td>
                                                 <td className="p-2">{(l.minutes / 60).toFixed(2)}</td>
+                                                <td className="p-2">{rateUnitLabel(l.rateUnit)}</td>
                                                 <td className="p-2">{l.hourlyPence === null ? "Rate missing" : money(l.hourlyPence)}</td>
                                                 <td className="p-2">{l.amountPence === null ? "-" : money(l.amountPence)}</td>
                                             </tr>
@@ -326,7 +338,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
                                         {!record.lines.length && (
                                             <tr>
                                                 <td
-                                                    colSpan={5}
+                                                    colSpan={6}
                                                     className="p-5"
                                                 >
                                                     No unprocessed completed visits in this period.

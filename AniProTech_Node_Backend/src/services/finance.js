@@ -4,6 +4,10 @@ import { reply, fail, uuid } from "../http.js";
 import { dateRange } from "./activity.js";
 export const roundCharge = (minutes, pence) =>
   Math.floor((minutes * pence + 30) / 60);
+const RATE_UNITS = ["HOURLY", "HALF_DAY", "FULL_DAY", "SESSION_3H", "SESSION_6H", "DAILY", "WEEKLY", "YEARLY"];
+const BILLING_UNITS = ["HOURLY", "HALF_DAY", "FULL_DAY", "SESSION_3H", "SESSION_6H", "WEEKLY"];
+const PAY_UNITS = ["HOURLY", "DAILY", "WEEKLY", "YEARLY"];
+const fixedRate = (unit) => unit !== "HOURLY";
 export function registerFinance({ db, repo, auth }, route) {
   async function lock(req) {
     await db.query(
@@ -27,7 +31,9 @@ export function registerFinance({ db, repo, auth }, route) {
     const { rows } = await db.query(
       `SELECT v.id AS "visitId",v.visit_date::text AS date,v.title,
       review.minutes AS minutes,v.revision AS "visitRevision",review.revision AS "reviewRevision",
-      (SELECT hourly_pence FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "hourlyPence"
+      (SELECT hourly_pence FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "hourlyPence",
+      (SELECT rate_pence FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "ratePence",
+      (SELECT rate_unit FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "rateUnit"
       FROM node_roster_visits v JOIN node_finance_reviews review ON review.visit_id=v.id AND review.kind=$5 AND review.state='CONFIRMED' AND review.visit_revision=v.revision WHERE v.agency_id=$1 AND ${kind === "INVOICE" ? "v.client_id" : "v.staff_id"}=$2 AND v.status='COMPLETED'
       AND v.visit_date BETWEEN $3 AND $4 AND NOT EXISTS(SELECT 1 FROM node_finance_lines l WHERE l.visit_id=v.id AND l.kind=$6 AND l.released=false)
       ORDER BY v.visit_date,v.start_time,v.id`,
@@ -36,9 +42,23 @@ export function registerFinance({ db, repo, auth }, route) {
     const lines = rows.map((r) => ({
       ...r,
       component:"CARE",
+      rateUnit:r.rateUnit || "HOURLY",
       amountPence:
-        r.hourlyPence === null ? null : roundCharge(r.minutes, r.hourlyPence),
+        r.ratePence === null ? null : fixedRate(r.rateUnit || "HOURLY") ? Number(r.ratePence) : roundCharge(r.minutes, r.hourlyPence),
     }));
+    // Daily, weekly and yearly pay rates are paid once for the matching period, while every
+    // underlying visit remains represented so it cannot be included in a later pay run.
+    if(kind === "PAYRUN") {
+      const seen = new Set();
+      for (const line of lines) {
+        if (!['DAILY','WEEKLY','YEARLY'].includes(line.rateUnit)) continue;
+        const date = new Date(`${line.date}T00:00:00Z`);
+        const period = line.rateUnit === 'DAILY' ? line.date : line.rateUnit === 'YEARLY' ? String(date.getUTCFullYear()) : (() => { const day=(date.getUTCDay()+6)%7; date.setUTCDate(date.getUTCDate()-day); return date.toISOString().slice(0,10); })();
+        const key = `${line.rateUnit}:${line.ratePence}:${period}`;
+        if (seen.has(key)) { line.amountPence = 0; line.title = `${line.title} (included in ${line.rateUnit.toLowerCase()} rate)`; }
+        else { seen.add(key); line.title = `${line.title} (${line.rateUnit.toLowerCase()} rate)`; }
+      }
+    }
     if(kind==="PAYRUN"&&rows.length){const travel=(await db.query(`SELECT t.visit_id AS "visitId",t.miles,t.minutes,t.revision AS "travelRevision",v.visit_date::text AS date,v.title,v.revision AS "visitRevision",review.revision AS "reviewRevision",
       (SELECT mileage_pence FROM node_travel_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "mileagePence",
       (SELECT hourly_pence FROM node_travel_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "travelHourlyPence"
@@ -54,7 +74,7 @@ export function registerFinance({ db, repo, auth }, route) {
       from,
       to,
       lines,
-      missingRates: lines.filter((l) => l.hourlyPence === null).length,
+      missingRates: lines.filter((l) => l.amountPence === null).length,
       totalPence: lines.reduce((sum, l) => sum + (l.amountPence || 0), 0),
       currency: "GBP",
     };
@@ -95,7 +115,7 @@ export function registerFinance({ db, repo, auth }, route) {
       res,
       (
         await db.query(
-          `SELECT r.id,r.user_id AS "userId",r.kind,r.effective_from::text AS "effectiveFrom",r.hourly_pence AS "hourlyPence",u.first_name||' '||u.last_name AS name
+          `SELECT r.id,r.user_id AS "userId",r.kind,r.effective_from::text AS "effectiveFrom",r.hourly_pence AS "hourlyPence",r.rate_pence AS "ratePence",r.rate_unit AS "rateUnit",u.first_name||' '||u.last_name AS name
       FROM node_rates r JOIN users u ON u.id=r.user_id WHERE r.agency_id=$1 ORDER BY r.effective_from DESC,u.first_name`,
           [req.user.agencyId],
         )
@@ -109,25 +129,32 @@ export function registerFinance({ db, repo, auth }, route) {
         userId: z.uuid(),
         kind: z.enum(["BILLING", "PAY"]),
         effectiveFrom: z.string(),
-        hourlyPence: z.number().int().min(0).max(1000000),
+        hourlyPence: z.number().int().min(0).max(1000000).optional(),
+        ratePence: z.number().int().min(0).max(100000000).optional(),
+        rateUnit: z.enum(RATE_UNITS).default("HOURLY"),
       })
       .safeParse(req.body);
-    if (!p.success)
-      fail(400, "Enter a person, effective date and valid hourly rate");
+    if (!p.success) fail(400, "Enter a person, effective date and valid rate");
     const b = p.data;
+    if (!(b.kind === "BILLING" ? BILLING_UNITS : PAY_UNITS).includes(b.rateUnit))
+      fail(400, "Choose a valid rate unit for this rate card");
+    const ratePence = b.ratePence ?? b.hourlyPence;
+    if (!Number.isInteger(ratePence)) fail(400, "Enter a valid rate amount");
     dateRange({ from: b.effectiveFrom, to: b.effectiveFrom });
     await recipient(req, b.userId, b.kind === "BILLING" ? "INVOICE" : "PAYRUN");
     await lock(req);
     await db.query(
-      `INSERT INTO node_rates(id,agency_id,user_id,kind,effective_from,hourly_pence) VALUES($1,$2,$3,$4,$5,$6)
-      ON CONFLICT(user_id,kind,effective_from) DO UPDATE SET hourly_pence=EXCLUDED.hourly_pence`,
+      `INSERT INTO node_rates(id,agency_id,user_id,kind,effective_from,hourly_pence,rate_unit,rate_pence) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT(user_id,kind,effective_from) DO UPDATE SET hourly_pence=EXCLUDED.hourly_pence,rate_unit=EXCLUDED.rate_unit,rate_pence=EXCLUDED.rate_pence`,
       [
         randomUUID(),
         req.user.agencyId,
         b.userId,
         b.kind,
         b.effectiveFrom,
-        b.hourlyPence,
+        b.rateUnit === "HOURLY" ? ratePence : 0,
+        b.rateUnit,
+        ratePence,
       ],
     );
     await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'RATE_SAVED',$5)",[randomUUID(),req.user.agencyId,req.user.id,b.userId,JSON.stringify(b)]);
@@ -174,7 +201,7 @@ export function registerFinance({ db, repo, auth }, route) {
     );
     for (const l of p.lines)
       await db.query(
-        "INSERT INTO node_finance_lines(id,document_id,visit_id,kind,visit_date,title,minutes,hourly_pence,amount_pence,component,visit_revision,review_revision,travel_revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+        "INSERT INTO node_finance_lines(id,document_id,visit_id,kind,visit_date,title,minutes,hourly_pence,amount_pence,component,rate_unit,visit_revision,review_revision,travel_revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
         [
           randomUUID(),
           id,
@@ -186,6 +213,7 @@ export function registerFinance({ db, repo, auth }, route) {
           l.hourlyPence,
           l.amountPence,
           l.component,
+          l.rateUnit || "HOURLY",
           l.visitRevision,
           l.reviewRevision,
           l.travelRevision||null,
@@ -221,7 +249,7 @@ export function registerFinance({ db, repo, auth }, route) {
     if (!d) fail(404, "Document not found");
     d.lines = (
       await db.query(
-        'SELECT id,visit_id AS "visitId",visit_date::text AS date,title,component,minutes,hourly_pence AS "hourlyPence",amount_pence AS "amountPence" FROM node_finance_lines WHERE document_id=$1 ORDER BY visit_date,component,id',
+        'SELECT id,visit_id AS "visitId",visit_date::text AS date,title,component,minutes,hourly_pence AS "hourlyPence",rate_unit AS "rateUnit",amount_pence AS "amountPence" FROM node_finance_lines WHERE document_id=$1 ORDER BY visit_date,component,id',
         [d.id],
       )
     ).rows;
@@ -273,7 +301,7 @@ export function registerFinance({ db, repo, auth }, route) {
     return reply(res, {}, "Document updated");
   });
   route("GET","/api/finance/documents/:id/reconcile",async(req,res)=>{auth.admin(req);return reply(res,await reconciliation(req,req.params.id))});
-  route("POST","/api/finance/documents/:id/export",async(req,res)=>{auth.admin(req);const check=await reconciliation(req,req.params.id),d=(await db.query(docSelect+" WHERE id=$1 AND agency_id=$2",[req.params.id,req.user.agencyId])).rows[0];if(!d)fail(404,"Document not found");const lines=(await db.query('SELECT visit_date::text AS date,title,component,minutes,hourly_pence AS "hourlyPence",amount_pence AS "amountPence" FROM node_finance_lines WHERE document_id=$1 ORDER BY visit_date,component,id',[d.id])).rows;await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'DOCUMENT_EXPORTED',$5)",[randomUUID(),req.user.agencyId,req.user.id,d.id,JSON.stringify({format:req.body?.format||"CSV",status:d.status,reconciliation:check})]);return reply(res,{document:d,lines,reconciliation:check},"Export recorded")});
+  route("POST","/api/finance/documents/:id/export",async(req,res)=>{auth.admin(req);const check=await reconciliation(req,req.params.id),d=(await db.query(docSelect+" WHERE id=$1 AND agency_id=$2",[req.params.id,req.user.agencyId])).rows[0];if(!d)fail(404,"Document not found");const lines=(await db.query('SELECT visit_date::text AS date,title,component,minutes,hourly_pence AS "hourlyPence",rate_unit AS "rateUnit",amount_pence AS "amountPence" FROM node_finance_lines WHERE document_id=$1 ORDER BY visit_date,component,id',[d.id])).rows;await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'DOCUMENT_EXPORTED',$5)",[randomUUID(),req.user.agencyId,req.user.id,d.id,JSON.stringify({format:req.body?.format||"CSV",status:d.status,reconciliation:check})]);return reply(res,{document:d,lines,reconciliation:check},"Export recorded")});
   route("POST","/api/finance/travel",async(req,res)=>{auth.admin(req);const p=z.object({visitId:z.uuid(),miles:z.number().min(0).max(10000),minutes:z.number().int().min(0).max(1440),source:z.enum(["ACTUAL","ESTIMATE"]).default("ACTUAL"),expectedRevision:z.number().int().min(0).default(0)}).safeParse(req.body);if(!p.success)fail(400,"Enter valid visit mileage and travel time");const b=p.data;const v=(await db.query("SELECT * FROM node_roster_visits WHERE id=$1 AND agency_id=$2",[b.visitId,req.user.agencyId])).rows[0];if(!v||v.status!=="COMPLETED"||!v.staff_id)fail(400,"Choose a completed assigned visit");const old=(await db.query("SELECT * FROM node_visit_travel WHERE visit_id=$1",[v.id])).rows[0];if((old?.revision||0)!==b.expectedRevision)fail(409,"Travel changed. Refresh before saving.");if((await db.query("SELECT id FROM node_finance_lines WHERE visit_id=$1 AND kind='PAYRUN' AND released=false",[v.id])).rows.length)fail(409,"Travel is locked in a staff pay document");await db.query(`INSERT INTO node_visit_travel(visit_id,agency_id,staff_id,miles,minutes,source,recorded_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(visit_id) DO UPDATE SET miles=EXCLUDED.miles,minutes=EXCLUDED.minutes,source=EXCLUDED.source,revision=node_visit_travel.revision+1,recorded_by=EXCLUDED.recorded_by,updated_at=CURRENT_TIMESTAMP`,[v.id,req.user.agencyId,v.staff_id,b.miles,b.minutes,b.source,req.user.id]);await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'TRAVEL_RECORDED',$5)",[randomUUID(),req.user.agencyId,req.user.id,v.id,JSON.stringify(b)]);return reply(res,{},"Travel saved")});
   route("GET","/api/finance/travel",async(req,res)=>{auth.admin(req);const {from,to}=dateRange(req.query);return reply(res,(await db.query(`SELECT t.visit_id AS "visitId",t.staff_id AS "staffId",t.miles,t.minutes,t.source,t.revision,v.visit_date::text date,v.title,u.first_name||' '||u.last_name name FROM node_visit_travel t JOIN node_roster_visits v ON v.id=t.visit_id JOIN users u ON u.id=t.staff_id WHERE t.agency_id=$1 AND v.visit_date BETWEEN $2 AND $3 ORDER BY v.visit_date,v.start_time`,[req.user.agencyId,from,to])).rows)});
   route("POST","/api/finance/credit-notes",async(req,res)=>{auth.admin(req);const p=z.object({invoiceId:z.uuid(),reason:z.string().trim().min(5).max(1000),lines:z.array(z.object({financeLineId:z.uuid(),amountPence:z.number().int().positive()})).min(1).max(500)}).safeParse(req.body);if(!p.success)fail(400,"Enter an invoice, reason and valid credit lines");const b=p.data;const result=await db.transaction(async()=>{await lock(req);const invoice=(await db.query("SELECT * FROM node_finance_documents WHERE id=$1 AND agency_id=$2 AND kind='INVOICE' FOR UPDATE",[b.invoiceId,req.user.agencyId])).rows[0];if(!invoice||!['ISSUED','PAID'].includes(invoice.status))fail(400,"Choose an issued or paid invoice");const ids=b.lines.map(x=>x.financeLineId);if(new Set(ids).size!==ids.length)fail(400,"Choose each invoice line once");const source=(await db.query("SELECT * FROM node_finance_lines WHERE document_id=$1 AND id=ANY($2::uuid[])",[invoice.id,ids])).rows;if(source.length!==ids.length)fail(400,"A credit line does not belong to this invoice");const already=(await db.query("SELECT COALESCE(sum(total_pence),0)::int total FROM node_credit_notes WHERE invoice_id=$1 AND status<>'VOID'",[invoice.id])).rows[0].total,creditedByLine=(await db.query(`SELECT l.finance_line_id,sum(l.amount_pence)::int total FROM node_credit_note_lines l JOIN node_credit_notes c ON c.id=l.credit_note_id WHERE c.invoice_id=$1 AND c.status<>'VOID' GROUP BY l.finance_line_id`,[invoice.id])).rows;let total=0;for(const line of b.lines){const original=source.find(x=>x.id===line.financeLineId),lineAlready=Number(creditedByLine.find(x=>x.finance_line_id===line.financeLineId)?.total||0);if(lineAlready+line.amountPence>Number(original.amount_pence))fail(409,"Credits cannot exceed an original invoice line");total+=line.amountPence;}if(Number(already)+total>Number(invoice.total_pence))fail(409,"Credits cannot exceed the invoice total");const number=(await db.query("SELECT COALESCE(max(number),0)+1 next FROM node_credit_notes WHERE agency_id=$1",[req.user.agencyId])).rows[0].next,id=randomUUID();await db.query("INSERT INTO node_credit_notes(id,agency_id,invoice_id,number,reason,total_pence,created_by) VALUES($1,$2,$3,$4,$5,$6,$7)",[id,req.user.agencyId,invoice.id,number,b.reason,total,req.user.id]);for(const line of b.lines){const original=source.find(x=>x.id===line.financeLineId);await db.query("INSERT INTO node_credit_note_lines(id,credit_note_id,finance_line_id,description,amount_pence) VALUES($1,$2,$3,$4,$5)",[randomUUID(),id,original.id,original.title,line.amountPence]);}await db.query("INSERT INTO node_finance_history(id,agency_id,actor_id,subject_id,action,snapshot) VALUES($1,$2,$3,$4,'CREDIT_NOTE_CREATED',$5)",[randomUUID(),req.user.agencyId,req.user.id,id,JSON.stringify({invoiceId:invoice.id,totalPence:total,reason:b.reason})]);return id});return reply(res,{id:result},"Credit note draft created",201)});
