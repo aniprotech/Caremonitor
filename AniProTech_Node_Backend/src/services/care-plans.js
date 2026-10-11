@@ -27,6 +27,23 @@ export const careType = (key) =>
     : key.toUpperCase().replaceAll("-", "_");
 export function registerCarePlans(ctx, route) {
   const { repo, db, auth } = ctx;
+  route("GET", "/api/care-plan-governance/:clientId", async (req, res) => {
+    await auth.userAccess(req, req.params.clientId);
+    const row = (await db.query(`SELECT stage,version,review_due AS "reviewDue",signature_status AS "signatureStatus",reviewed_at AS "reviewedAt",approved_at AS "approvedAt",notes,updated_at AS "updatedAt" FROM node_care_plan_governance WHERE client_id=$1 AND agency_id=$2`,[req.params.clientId,req.user.agencyId])).rows[0];
+    return reply(res,row || { stage:"DRAFT",version:1,signatureStatus:"PENDING",reviewDue:null,notes:"" });
+  });
+  route("PUT", "/api/care-plan-governance/:clientId", async (req, res) => {
+    await auth.userAccess(req, req.params.clientId,{write:true});
+    const stages=["DRAFT","REVIEWED","APPROVED","RETIRED"], signatures=["PENDING","SIGNED","NOT_REQUIRED"];
+    const stage=String(req.body.stage||""), signatureStatus=String(req.body.signatureStatus||"PENDING"), reviewDue=req.body.reviewDue||null, notes=req.body.notes==null?null:String(req.body.notes).trim();
+    if(!stages.includes(stage)||!signatures.includes(signatureStatus)||notes?.length>4000||reviewDue&& !/^\d{4}-\d{2}-\d{2}$/.test(reviewDue))fail(400,"Enter valid care-plan governance details");
+    if(stage==="APPROVED") auth.admin(req);
+    const row=(await db.query(`INSERT INTO node_care_plan_governance(client_id,agency_id,stage,review_due,signature_status,reviewer_id,reviewed_at,approved_by,approved_at,notes,updated_by)
+      VALUES($1,$2,$3,$4,$5,CASE WHEN $3 IN ('REVIEWED','APPROVED') THEN $6::uuid END,CASE WHEN $3 IN ('REVIEWED','APPROVED') THEN CURRENT_TIMESTAMP END,CASE WHEN $3='APPROVED' THEN $6::uuid END,CASE WHEN $3='APPROVED' THEN CURRENT_TIMESTAMP END,$7,$6)
+      ON CONFLICT(client_id) DO UPDATE SET stage=EXCLUDED.stage,version=node_care_plan_governance.version+1,review_due=EXCLUDED.review_due,signature_status=EXCLUDED.signature_status,reviewer_id=EXCLUDED.reviewer_id,reviewed_at=EXCLUDED.reviewed_at,approved_by=EXCLUDED.approved_by,approved_at=EXCLUDED.approved_at,notes=EXCLUDED.notes,updated_by=EXCLUDED.updated_by,updated_at=CURRENT_TIMESTAMP
+      RETURNING stage,version,review_due AS "reviewDue",signature_status AS "signatureStatus",reviewed_at AS "reviewedAt",approved_at AS "approvedAt",notes,updated_at AS "updatedAt"`,[req.params.clientId,req.user.agencyId,stage,reviewDue,signatureStatus,req.user.id,notes||null])).rows[0];
+    return reply(res,row,"Care-plan governance updated");
+  });
   async function parent(req, name, clientId) {
     await auth.userAccess(req, clientId);
     return db.transaction(async () => {

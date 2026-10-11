@@ -1,9 +1,11 @@
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useGlobalStore } from "../../../../stores/useGlobalStore";
 import AssessmentCard from "./components/AssessmentCard";
 import { additionalAssessments, auditingDocuments, documents, initialAssessments } from "../../../../data/clients/clientCarePlanData";
 import { UserRound, Check } from "lucide-react";
+import { _get, _put } from "../../../../utils/ApiService";
 // import useScrollToTop from "../../../../hooks/useScrollToTop";
 
 const CarePlanIndex = () => {
@@ -11,6 +13,17 @@ const CarePlanIndex = () => {
     const { id } = useParams();
     const { clientsPersonalDetailData } = useGlobalStore();
     const clientName = clientsPersonalDetailData ? `${clientsPersonalDetailData.firstName}` : "the client";
+    const [governance, setGovernance] = useState(null);
+    const [savingGovernance, setSavingGovernance] = useState(false);
+    useEffect(() => {
+        _get(`/api/care-plan-governance/${id}`).then((response) => setGovernance(response.data.results.data)).catch(() => setGovernance(null));
+    }, [id]);
+    const saveGovernance = async (next = governance) => {
+        if (!next || savingGovernance) return;
+        setSavingGovernance(true);
+        try { const response = await _put(`/api/care-plan-governance/${id}`, next); setGovernance(response.data.results.data); }
+        finally { setSavingGovernance(false); }
+    };
 
     // useScrollToTop();
     const handleNavigate = (path) => {
@@ -49,6 +62,7 @@ const CarePlanIndex = () => {
                 <div></div>
                 <div></div>
             </div>
+            {governance && <section className="mb-10 rounded-lg border border-customNavy/20 bg-white p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="poppins-medium text-lg text-customBlack">Care-plan governance</h2><p className="text-sm text-customGrey1">Version {governance.version} · reviewed and approved actions are recorded with the responsible user.</p></div><span className="rounded-full bg-customFeedCardBg1 px-3 py-1 text-sm font-semibold">{governance.stage.replaceAll("_", " ")}</span></div><div className="mt-4 grid gap-3 md:grid-cols-4"><label className="text-sm">Lifecycle<select value={governance.stage} onChange={(event) => setGovernance({ ...governance, stage: event.target.value })} className="mt-1 w-full rounded border p-2"><option value="DRAFT">Draft</option><option value="REVIEWED">Reviewed</option><option value="APPROVED">Approved</option><option value="RETIRED">Retired</option></select></label><label className="text-sm">Review due<input type="date" value={governance.reviewDue || ""} onChange={(event) => setGovernance({ ...governance, reviewDue: event.target.value || null })} className="mt-1 w-full rounded border p-2" /></label><label className="text-sm">Signature<select value={governance.signatureStatus} onChange={(event) => setGovernance({ ...governance, signatureStatus: event.target.value })} className="mt-1 w-full rounded border p-2"><option value="PENDING">Pending</option><option value="SIGNED">Signed</option><option value="NOT_REQUIRED">Not required</option></select></label><div className="flex items-end"><button disabled={savingGovernance} onClick={() => saveGovernance()} className="rounded border border-customNavy px-4 py-2 text-sm font-semibold">{savingGovernance ? "Saving…" : "Save governance"}</button></div></div><textarea value={governance.notes || ""} onChange={(event) => setGovernance({ ...governance, notes: event.target.value })} maxLength={4000} placeholder="Review findings, approval rationale or version notes" className="mt-3 min-h-20 w-full rounded border p-2 text-sm" /></section>}
 
             <div className="space-y-16">
                 {/* Initial Assessments Section */}
