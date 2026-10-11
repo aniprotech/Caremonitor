@@ -25,6 +25,8 @@
     padding: 9px 17px;
     color: #354052;
 }
+.team-operations .op-link-button { border:1px solid #8b9db9; border-radius:4px; background:#fff; padding:9px 17px; color:#354052; text-decoration:none; }
+.team-operations .op-help { margin:12px 0 0; color:#667085; font-size:13px; line-height:1.5; }
 .team-operations button:disabled {
     opacity: 0.5;
 }

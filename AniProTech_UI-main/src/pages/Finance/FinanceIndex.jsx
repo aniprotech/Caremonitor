@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { _get, _post } from "../../utils/ApiService";
 import { londonToday, money } from "../../components/Operations/common";
 import FinanceWorkspace from "./FinanceWorkspace";
@@ -23,7 +23,9 @@ function Overview({ overview }) {
     );
 }
 export default function FinanceIndex() {
-    const [section, setSection] = useState("VISITS"),
+    const [searchParams] = useSearchParams();
+    const requestedSection = searchParams.get("section");
+    const [section, setSection] = useState(["OVERVIEW", "VISITS", "INVOICE", "RATES", "PAYRUN", "SERVICES", "TRAVEL", "HISTORY"].includes(requestedSection) ? requestedSection : "VISITS"),
         [from, setFrom] = useState(londonToday),
         [to, setTo] = useState(londonToday),
         [data, setData] = useState({ visits: [], groups: [] }),
@@ -205,8 +207,10 @@ export default function FinanceIndex() {
                     </div>
                 ) : ["INVOICE", "PAYRUN", "RATES"].includes(section) ? (
                     <FinanceWorkspace
-                        key={section}
+                        key={`${section}:${searchParams.get("person") || ""}:${searchParams.get("kind") || ""}`}
                         initialTab={section}
+                        initialPersonId={searchParams.get("person") || ""}
+                        initialRateKind={searchParams.get("kind") === "PAY" ? "PAY" : "BILLING"}
                     />
                 ) : section === "HISTORY" ? (
                     <div className="fin-content">

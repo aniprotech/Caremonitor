@@ -7,7 +7,7 @@ const rateUnits = {
     PAY: [["HOURLY", "Per hour"], ["DAILY", "Per day"], ["WEEKLY", "Per week"], ["YEARLY", "Per year"]],
 };
 const rateUnitLabel = (unit) => Object.values(rateUnits).flat().find(([value]) => value === unit)?.[1] || "Per hour";
-export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
+export default function FinanceWorkspace({ initialTab = "INVOICE", initialPersonId = "", initialRateKind = "BILLING" }) {
     const [tab, setTab] = useState(initialTab),
         [people, setPeople] = useState([]),
         [rates, setRates] = useState([]),
@@ -22,6 +22,9 @@ export default function FinanceWorkspace({ initialTab = "INVOICE" }) {
         [reload, setReload] = useState(0);
     const [reconciliation,setReconciliation]=useState(null),[credit,setCredit]=useState(null);
     const [rate, setRate] = useState({ userId: "", kind: "BILLING", rateUnit: "HOURLY", effectiveFrom: londonToday(), amount: "" });
+    useEffect(() => {
+        if (initialPersonId) setRate((current) => ({ ...current, userId: initialPersonId, kind: initialRateKind, rateUnit: "HOURLY" }));
+    }, [initialPersonId, initialRateKind]);
     useEffect(() => {
         let active = true;
         setError("");

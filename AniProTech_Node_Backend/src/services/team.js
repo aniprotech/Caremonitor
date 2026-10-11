@@ -215,6 +215,36 @@ export function registerTeam(ctx, route) {
         : {},
     );
   });
+  route("GET", "/api/team/:userId/readiness", async (req, res) => {
+    await auth.userAccess(req, req.params.userId, { staff: true });
+    const [onboarding] = await repo.find("TeamOnboardingEntity", { user: req.params.userId });
+    const required = [
+      ["started", "Employment start date"],
+      ["contractFilePath", "Employment contract"],
+      ["idFilePath", "Identity document"],
+      ["referencesFilePath", "References"],
+      ["dbsRecordFilePath", "DBS record"],
+    ];
+    const missing = !onboarding ? required.map(([, label]) => label) : required.filter(([field]) => !onboarding[field]).map(([, label]) => label);
+    const credentials = (await db.query(
+      `SELECT kind,expires_at::text AS "expiresAt",status FROM node_staff_credentials
+       WHERE agency_id=$1 AND staff_id=$2 ORDER BY expires_at NULLS LAST,kind`,
+      [req.user.agencyId, req.params.userId],
+    )).rows;
+    const today = new Date().toISOString().slice(0, 10);
+    const inThirtyDays = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const expired = credentials.filter((item) => item.status !== "VALID" || (item.expiresAt && item.expiresAt < today));
+    const expiring = credentials.filter((item) => item.status === "VALID" && item.expiresAt && item.expiresAt >= today && item.expiresAt <= inThirtyDays);
+    const status = missing.length || expired.length ? "NOT_READY" : expiring.length ? "ATTENTION" : "READY";
+    return reply(res, {
+      status,
+      canRoster: status !== "NOT_READY",
+      missing,
+      expired,
+      expiring,
+      checkedAt: new Date().toISOString(),
+    });
+  });
   route(
     "POST",
     "/api/team-onboarding/update/:userId",

@@ -138,6 +138,15 @@ export function registerRoster(ctx, route) {
       });
       if (!staff.isActive || staff.deletedAt)
         fail(400, "Choose an active staff member");
+      if (v.status === "SCHEDULED") {
+        const invalidCredential = (await db.query(
+          `SELECT 1 FROM node_staff_credentials WHERE agency_id=$1 AND staff_id=$2
+           AND (status<>'VALID' OR (expires_at IS NOT NULL AND expires_at<CURRENT_DATE)) LIMIT 1`,
+          [req.user.agencyId, v.staffId],
+        )).rows.length > 0;
+        if (invalidCredential)
+          fail(409, "This caregiver has an expired or inactive credential and cannot be scheduled until it is resolved");
+      }
       const absences = await repo.find("TeamAbsenceEntity", {
         user: v.staffId,
       });

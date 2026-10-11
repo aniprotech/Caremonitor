@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { _get, _put } from "../../../../utils/ApiService";
 import useAuthStore from "../../../../stores/authStore";
 import "./operations.css";
@@ -11,6 +11,8 @@ const display = (v) =>
               .toLowerCase()
               .replace(/^./, (c) => c.toUpperCase())
         : "N/A";
+const rateUnitLabel = (unit) => ({ HOURLY: "Per hour", DAILY: "Per day", WEEKLY: "Per week", YEARLY: "Per year" }[unit] || "Per hour");
+const todayInLondon = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
 export default function OperationIndex({ initialSection = null }) {
     const { id } = useParams(),
         navigate = useNavigate(),
@@ -21,12 +23,11 @@ export default function OperationIndex({ initialSection = null }) {
         [draft, setDraft] = useState({}),
         [error, setError] = useState(""),
         [busy, setBusy] = useState(false),
-        [notice, setNotice] = useState("");
+        [notice, setNotice] = useState(""),
+        [staffRates, setStaffRates] = useState([]);
     const begin = (key, values) => {
         setDraft(
-            key === "travel"
-                ? { address: values.address || "", transportMethod: values.transportMethod || "" }
-                : { rateCard: values.rateCard || "", travelRateCard: values.travelRateCard || "" },
+            { address: values.address || "", transportMethod: values.transportMethod || "" },
         );
         setSection(key);
         setError("");
@@ -36,12 +37,13 @@ export default function OperationIndex({ initialSection = null }) {
         setData(null);
         setSection(null);
         setError("");
-        _get(`/api/team-operations/get/${id}`, { signal: c.signal })
-            .then((r) => {
+        Promise.all([_get(`/api/team-operations/get/${id}`, { signal: c.signal }), _get("/api/finance/rates", { signal: c.signal })])
+            .then(([r, rates]) => {
                 if (!c.signal.aborted) {
                     const value = r.data.results.data;
                     setData(value);
-                    if (initialSection) begin(initialSection, value);
+                    setStaffRates(rates.data.results.data.filter((rate) => rate.userId === id && rate.kind === "PAY"));
+                    if (initialSection === "travel") begin(initialSection, value);
                 }
             })
             .catch((e) => {
@@ -91,6 +93,9 @@ export default function OperationIndex({ initialSection = null }) {
             </dl>
         </section>
     );
+    const activeRate = staffRates
+        .filter((rate) => rate.effectiveFrom <= todayInLondon())
+        .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
     return (
         <main className="team-operations">
             {error && <p role="alert">{error}</p>}
@@ -103,10 +108,18 @@ export default function OperationIndex({ initialSection = null }) {
                         ["Address", data.address || "None"],
                         ["Transport method", names[data.transportMethod] || "None"],
                     ])}
-                    {table("rates", "Rates", [
-                        ["Rate card", display(data.rateCard)],
-                        ["Travel rate card", display(data.travelRateCard)],
-                    ])}
+                    <section aria-label="Staff pay rate">
+                        <header>
+                            <h2>Staff pay rate</h2>
+                            {canEdit && <Link className="op-link-button" to={`/admin/finances?section=RATES&person=${id}&kind=PAY`}>Manage in Finance</Link>}
+                        </header>
+                        <dl>
+                            <div><dt>Active rate</dt><dd>{activeRate ? `£${((activeRate.ratePence ?? activeRate.hourlyPence) / 100).toFixed(2)} ${rateUnitLabel(activeRate.rateUnit)}` : "Not set"}</dd></div>
+                            <div><dt>Effective from</dt><dd>{activeRate?.effectiveFrom || "—"}</dd></div>
+                            <div><dt>Travel rate card</dt><dd>{display(data.travelRateCard)}</dd></div>
+                        </dl>
+                        <p className="op-help">Staff pay rates are set in Finance by an administrator. The latest rate effective on the visit date is used automatically when a pay run is prepared.</p>
+                    </section>
                 </>
             )}
             {section && canEdit && (
@@ -114,12 +127,11 @@ export default function OperationIndex({ initialSection = null }) {
                     <form
                         role="dialog"
                         aria-modal="true"
-                        aria-label={section === "travel" ? "Edit travel information" : "Edit rates"}
+                        aria-label="Edit travel information"
                         onSubmit={save}
                     >
-                        <h2>{section === "travel" ? "Travel information" : "Rates"}</h2>
-                        {section === "travel" ? (
-                            <>
+                        <h2>Travel information</h2>
+                        <>
                                 <label>
                                     Address
                                     <textarea
@@ -145,34 +157,7 @@ export default function OperationIndex({ initialSection = null }) {
                                         ))}
                                     </select>
                                 </label>
-                            </>
-                        ) : (
-                            <>
-                                <p>Rate-card labels for this team member. Staff pay amounts are configured in Finance.</p>
-                                {[
-                                    ["rateCard", "Rate card"],
-                                    ["travelRateCard", "Travel rate card"],
-                                ].map(([key, label]) => (
-                                    <label key={key}>
-                                        {label}
-                                        <input
-                                            list="operation-rate-labels"
-                                            maxLength={100}
-                                            value={draft[key]}
-                                            onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-                                        />
-                                    </label>
-                                ))}
-                                <datalist id="operation-rate-labels">
-                                    {["HIGH", "MEDIUM", "LOW", "OTHER", "NOT_DISCLOSED", "NOT_APPLICABLE"].map((v) => (
-                                        <option
-                                            key={v}
-                                            value={v}
-                                        />
-                                    ))}
-                                </datalist>
-                            </>
-                        )}
+                        </>
                         {error && <p role="alert">{error}</p>}
                         <footer>
                             <button
