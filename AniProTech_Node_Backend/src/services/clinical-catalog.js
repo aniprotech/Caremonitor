@@ -46,6 +46,7 @@ export function suggestHistoryTerms(query) {
 
 const scottishHospitalsResource = "c698f450-eeed-41a0-88f7-c1e40a568acc";
 const hospitalSiteRoles = "RO198,RO149,RO176,RO150";
+const odsTerminologyBaseUrl = "https://api.service.nhs.uk/organisation-data-terminology-api/fhir";
 // Public hospital entries from the HSCNI Service Finder; update when its directory changes.
 const northernIrelandHospitals = [
   ["Altnagelvin Hospital", "BT47 6SB"], ["South West Acute Hospital", "BT74 6DN"],
@@ -85,6 +86,33 @@ export async function searchOdsHospitals(query) {
   }));
 }
 
+// ODS now recommends its FHIR R4 Terminology API for new integrations.  It is
+// application-restricted, so retain the public ORD search as a safe fallback
+// until a production API key has been configured for this deployment.
+export async function searchOdsTerminologyHospitals(query) {
+  const apiKey = process.env.NHS_ODS_API_KEY;
+  if (!apiKey) throw new Error("ODS Terminology API is not configured");
+  const baseUrl = process.env.NHS_ODS_FHIR_BASE_URL || odsTerminologyBaseUrl;
+  const url = new URL(`${baseUrl.replace(/\/$/, "")}/Organization`);
+  url.searchParams.set("name:contains", query);
+  url.searchParams.set("active", "true");
+  url.searchParams.set("activeRoleCode", hospitalSiteRoles);
+  url.searchParams.set("_count", "100");
+  const response = await fetch(url, {
+    headers: { Accept: "application/fhir+json", apikey: apiKey },
+    signal: AbortSignal.timeout(4500),
+  });
+  if (!response.ok) throw new Error("ODS Terminology search unavailable");
+  const payload = await response.json();
+  return (payload.entry || []).map(entry => entry.resource).filter(resource => resource?.resourceType === "Organization" && resource.name)
+    .map(resource => ({
+      name: resource.name,
+      source: "NHS ODS Terminology",
+      code: resource.id || resource.identifier?.find(identifier => identifier.value)?.value,
+      postcode: resource.address?.[0]?.postalCode,
+    })).filter(record => record.code);
+}
+
 export async function searchScottishHospitals(query) {
   const url = new URL("https://www.opendata.nhs.scot/api/3/action/datastore_search");
   url.searchParams.set("resource_id", scottishHospitalsResource);
@@ -120,7 +148,8 @@ export function registerClinicalCatalog({ db, auth }, route) {
       choices.push({ name: row.name, source: "Organisation" });
     if (kind === "history") for (const name of suggestHistoryTerms(query)) if (!choices.some(c => c.name.toLowerCase() === name.toLowerCase())) choices.push({ name, source: "Suggested term" });
     if (kind === "hospital" && query.length >= 3) {
-      const results = await Promise.allSettled([searchOdsHospitals(query), searchScottishHospitals(query)]);
+      const searchOds = process.env.NHS_ODS_API_KEY ? searchOdsTerminologyHospitals(query) : searchOdsHospitals(query);
+      const results = await Promise.allSettled([searchOds, searchScottishHospitals(query)]);
       for (const record of searchNorthernIrelandHospitals(query).slice(0, 9)) {
         if (!choices.some(choice => choice.name.toLowerCase() === record.name.toLowerCase() && choice.postcode === record.postcode)) choices.push(record);
       }

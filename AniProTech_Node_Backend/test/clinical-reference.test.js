@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { searchNorthernIrelandHospitals, searchOdsHospitals, searchScottishHospitals, suggestHistoryTerms } from "../src/services/clinical-catalog.js";
+import { searchNorthernIrelandHospitals, searchOdsHospitals, searchOdsTerminologyHospitals, searchScottishHospitals, suggestHistoryTerms } from "../src/services/clinical-catalog.js";
 import { searchDmdMedicines } from "../src/services/nhs-terminology.js";
 
 test("hospital search finds coded NHS sites even when their names omit hospital", async () => {
@@ -13,6 +13,31 @@ test("hospital search finds coded NHS sites even when their names omit hospital"
   try {
     assert.deepEqual(await searchOdsHospitals("Queen"), [{ name: "Queen Victoria", source: "NHS ODS site", code: "ABC01", postcode: "AB1 2CD" }]);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test("ODS Terminology search uses the FHIR endpoint when an API key is configured", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.NHS_ODS_API_KEY;
+  const originalBaseUrl = process.env.NHS_ODS_FHIR_BASE_URL;
+  process.env.NHS_ODS_API_KEY = "test-api-key";
+  process.env.NHS_ODS_FHIR_BASE_URL = "https://sandbox.example/fhir";
+  globalThis.fetch = async (url, options) => {
+    const request = new URL(url);
+    assert.equal(request.pathname, "/fhir/Organization");
+    assert.equal(request.searchParams.get("name:contains"), "Queen");
+    assert.equal(request.searchParams.get("activeRoleCode"), "RO198,RO149,RO176,RO150");
+    assert.equal(options.headers.apikey, "test-api-key");
+    return { ok: true, json: async () => ({ entry: [{ resource: {
+      resourceType: "Organization", id: "ABC01", name: "Queen Victoria", address: [{ postalCode: "AB1 2CD" }],
+    } }] }) };
+  };
+  try {
+    assert.deepEqual(await searchOdsTerminologyHospitals("Queen"), [{ name: "Queen Victoria", source: "NHS ODS Terminology", code: "ABC01", postcode: "AB1 2CD" }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.NHS_ODS_API_KEY; else process.env.NHS_ODS_API_KEY = originalKey;
+    if (originalBaseUrl === undefined) delete process.env.NHS_ODS_FHIR_BASE_URL; else process.env.NHS_ODS_FHIR_BASE_URL = originalBaseUrl;
+  }
 });
 
 test("Scottish hospital search ignores matches from unrelated fields", async () => {
