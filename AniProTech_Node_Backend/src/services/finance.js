@@ -48,10 +48,10 @@ export function registerFinance({ db, repo, auth }, route) {
     }));
     // Daily, weekly and yearly pay rates are paid once for the matching period, while every
     // underlying visit remains represented so it cannot be included in a later pay run.
-    if(kind === "PAYRUN") {
+    if(kind === "PAYRUN" || kind === "INVOICE") {
       const seen = new Set();
       for (const line of lines) {
-        if (!['DAILY','WEEKLY','YEARLY'].includes(line.rateUnit)) continue;
+        if (!((kind === "PAYRUN" && ['DAILY','WEEKLY','YEARLY'].includes(line.rateUnit)) || (kind === "INVOICE" && line.rateUnit === 'WEEKLY'))) continue;
         const date = new Date(`${line.date}T00:00:00Z`);
         const period = line.rateUnit === 'DAILY' ? line.date : line.rateUnit === 'YEARLY' ? String(date.getUTCFullYear()) : (() => { const day=(date.getUTCDay()+6)%7; date.setUTCDate(date.getUTCDate()-day); return date.toISOString().slice(0,10); })();
         const key = `${line.rateUnit}:${line.ratePence}:${period}`;
