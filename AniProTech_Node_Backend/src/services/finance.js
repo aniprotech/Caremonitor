@@ -105,6 +105,7 @@ export function registerFinance({ db, repo, auth }, route) {
           id: p.id,
           name: p.firstName + " " + p.lastName,
           isClient: p.role === "USER",
+          role: p.role,
         })),
       currency: "GBP",
     });

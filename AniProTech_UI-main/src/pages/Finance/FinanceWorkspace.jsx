@@ -7,6 +7,7 @@ const rateUnits = {
     PAY: [["HOURLY", "Per hour"], ["DAILY", "Per day"], ["WEEKLY", "Per week"], ["YEARLY", "Per year"]],
 };
 const rateUnitLabel = (unit) => Object.values(rateUnits).flat().find(([value]) => value === unit)?.[1] || "Per hour";
+const daysBefore = (date, days) => { const value = new Date(`${date}T12:00:00Z`); value.setUTCDate(value.getUTCDate() - days); return value.toISOString().slice(0, 10); };
 export default function FinanceWorkspace({ initialTab = "INVOICE", initialPersonId = "", initialRateKind = "BILLING" }) {
     const [tab, setTab] = useState(initialTab),
         [people, setPeople] = useState([]),
@@ -15,6 +16,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
     const [from, setFrom] = useState(() => londonToday().slice(0, 8) + "01"),
         [to, setTo] = useState(londonToday),
         [recipient, setRecipient] = useState("");
+    const [period, setPeriod] = useState("THIS_MONTH");
     const [preview, setPreview] = useState(null),
         [detail, setDetail] = useState(null),
         [error, setError] = useState(""),
@@ -103,6 +105,23 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
     };
     const exportDocument=()=>run(async()=>{const result=(await _post(`/api/finance/documents/${detail.id}/export`,{format:"CSV"})).data.results.data;downloadCsv(documentName(detail)+".csv",[["Date","Type","Visit","Minutes","Rate unit","Rate GBP","Amount GBP"],...result.lines.map(l=>[l.date,l.component,l.title,l.minutes,rateUnitLabel(l.rateUnit),(l.hourlyPence/100).toFixed(2),(l.amountPence/100).toFixed(2)])]);setReconciliation(result.reconciliation)});
     const transitionCredit=(item,status)=>run(async()=>{await _post(`/api/finance/credit-notes/${item.id}/status`,{expectedStatus:item.status,status});setReload(n=>n+1)});
+    const selectPeriod = (value) => {
+        setPeriod(value); setPreview(null);
+        const today = londonToday();
+        if (value === "YESTERDAY") { const day = daysBefore(today, 1); setFrom(day); setTo(day); }
+        if (value === "LAST_WEEK") { const end = daysBefore(today, 7); setFrom(daysBefore(today, 13)); setTo(end); }
+        if (value === "LAST_30_DAYS") { setFrom(daysBefore(today, 29)); setTo(today); }
+        if (value === "LAST_300_DAYS") { setFrom(daysBefore(today, 299)); setTo(today); }
+        if (value === "THIS_MONTH") { setFrom(today.slice(0, 8) + "01"); setTo(today); }
+    };
+    const rateRows = people
+        .filter((person) => person.isClient || person.role === "CAREGIVER")
+        .map((person) => {
+            const kind = person.isClient ? "BILLING" : "PAY";
+            const current = rates.filter((item) => item.userId === person.id && item.kind === kind && item.effectiveFrom <= londonToday()).sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+            return { person, kind, current };
+        })
+        .sort((a, b) => a.kind.localeCompare(b.kind) || a.person.name.localeCompare(b.person.name));
     return (
         <Page
             title="Finance"
@@ -131,76 +150,10 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
             </div>
             {tab === "RATES" ? (
                 <>
-                    <form
-                        className="flex flex-wrap items-end gap-3 rounded-xl border bg-white p-5"
-                        onSubmit={saveRate}
-                    >
-                        <Field label="Rate type">
-                            <select
-                                className={inputClass}
-                                value={rate.kind}
-                                onChange={(e) => { const kind=e.target.value; setRate({ ...rate, kind, rateUnit: "HOURLY", userId: "" }); }}
-                            >
-                                <option value="BILLING">Client billing</option>
-                                <option value="PAY">Staff pay</option>
-                            </select>
-                        </Field>
-                        <Field label="Rate unit">
-                            <select className={inputClass} value={rate.rateUnit} onChange={(e) => setRate({ ...rate, rateUnit: e.target.value })}>
-                                {rateUnits[rate.kind].map(([value,label]) => <option key={value} value={value}>{label}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Person">
-                            <select
-                                required
-                                className={inputClass}
-                                value={rate.userId}
-                                onChange={(e) => setRate({ ...rate, userId: e.target.value })}
-                            >
-                                <option value="">Select person</option>
-                                {people
-                                    .filter((p) => p.isClient === (rate.kind === "BILLING"))
-                                    .map((p) => (
-                                        <option
-                                            key={p.id}
-                                            value={p.id}
-                                        >
-                                            {p.name}
-                                        </option>
-                                    ))}
-                            </select>
-                        </Field>
-                        <Field label="Effective from">
-                            <input
-                                required
-                                type="date"
-                                className={inputClass}
-                                value={rate.effectiveFrom}
-                                onChange={(e) => setRate({ ...rate, effectiveFrom: e.target.value })}
-                            />
-                        </Field>
-                        <Field label={`${rateUnitLabel(rate.rateUnit)} rate (GBP)`}>
-                            <input
-                                required
-                                type="number"
-                                min="0"
-                                max="10000"
-                                step="0.01"
-                                className={inputClass}
-                                value={rate.amount}
-                                onChange={(e) => setRate({ ...rate, amount: e.target.value })}
-                            />
-                        </Field>
-                        <button
-                            disabled={busy}
-                            className={buttonClass}
-                        >
-                            Save rate
-                        </button>
-                    </form>
-                    <p className="text-xs text-gray-500">
-                        Select a caregiver or client and set the date from which this rate applies. Finance automatically uses the latest applicable rate card when it previews a pay run or invoice. Saving the same person, type and date updates that rate; existing documents remain unchanged.
-                    </p>
+                    <section className="rounded-xl border border-cyan-100 bg-cyan-50 p-5 text-sm text-slate-700">
+                        <h2 className="font-semibold text-slate-900">Rates are set from the person record</h2>
+                        <p className="mt-1">Set caregiver pay in Team → Operations and client billing while creating or editing the client. Finance uses the latest rate effective on the visit date automatically. This page is the audit history.</p>
+                    </section>
                     <div className="overflow-auto rounded-xl border bg-white">
                         <table className="w-full text-left text-sm">
                             <thead>
@@ -216,20 +169,20 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
                                 </tr>
                             </thead>
                             <tbody>
-                                {rates.map((r) => (
+                                {rateRows.map(({ person, kind, current }) => (
                                     <tr
-                                        key={r.id}
+                                        key={`${kind}-${person.id}`}
                                         className="border-t"
                                     >
-                                        <td className="p-3">{r.name}</td>
-                                        <td className="p-3">{r.kind === "BILLING" ? "Client billing" : "Staff pay"}</td>
-                                        <td className="p-3">{rateUnitLabel(r.rateUnit)}</td>
-                                        <td className="p-3">{r.effectiveFrom}</td>
-                                        <td className="p-3">{money(r.ratePence ?? r.hourlyPence)}</td>
-                                        <td className="p-3"><button className="rounded border px-3 py-1" onClick={() => setRate({userId:r.userId,kind:r.kind,rateUnit:r.rateUnit || "HOURLY",effectiveFrom:r.effectiveFrom,amount:((r.ratePence ?? r.hourlyPence)/100).toFixed(2)})}>Edit</button></td>
+                                        <td className="p-3">{person.name}</td>
+                                        <td className="p-3">{kind === "BILLING" ? "Client billing" : "Caregiver pay"}</td>
+                                        <td className="p-3">{current ? rateUnitLabel(current.rateUnit) : "Not set"}</td>
+                                        <td className="p-3">{current?.effectiveFrom || "—"}</td>
+                                        <td className="p-3">{current ? money(current.ratePence ?? current.hourlyPence) : "—"}</td>
+                                        <td className="p-3"><Link className="rounded border px-3 py-1" to={kind === "PAY" ? `/admin/teams/${person.id}/operations` : `/admin/clients/${person.id}/basic-info/edit`}>Manage</Link></td>
                                     </tr>
                                 ))}
-                                {!rates.length && (
+                                {!rateRows.length && (
                                     <tr>
                                         <td
                                             colSpan={6}
@@ -246,7 +199,17 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
             ) : (
                 <>
                     <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-white p-5">
-                        <Field label="From">
+                        <Field label="Period">
+                            <select className={inputClass} value={period} onChange={(e) => selectPeriod(e.target.value)}>
+                                <option value="THIS_MONTH">This month</option>
+                                <option value="YESTERDAY">Yesterday</option>
+                                <option value="LAST_WEEK">Last week</option>
+                                <option value="LAST_30_DAYS">Last 30 days</option>
+                                <option value="LAST_300_DAYS">Last 300 days</option>
+                                <option value="CUSTOM">Custom</option>
+                            </select>
+                        </Field>
+                        {period === "CUSTOM" && <Field label="From">
                             <input
                                 type="date"
                                 className={inputClass}
@@ -256,8 +219,8 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
                                     setPreview(null);
                                 }}
                             />
-                        </Field>
-                        <Field label="To">
+                        </Field>}
+                        {period === "CUSTOM" && <Field label="To">
                             <input
                                 type="date"
                                 className={inputClass}
@@ -267,7 +230,8 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
                                     setPreview(null);
                                 }}
                             />
-                        </Field>
+                        </Field>}
+                        {period !== "CUSTOM" && <p className="pb-3 text-sm text-slate-600">{from} to {to}</p>}
                         <Field label={tab === "INVOICE" ? "Client" : "Staff member"}>
                             <select
                                 className={inputClass}
@@ -279,7 +243,7 @@ export default function FinanceWorkspace({ initialTab = "INVOICE", initialPerson
                             >
                                 <option value="">Choose person</option>
                                 {people
-                                    .filter((p) => p.isClient === (tab === "INVOICE"))
+                                    .filter((p) => tab === "INVOICE" ? p.isClient : p.role === "CAREGIVER")
                                     .map((p) => (
                                         <option
                                             key={p.id}
