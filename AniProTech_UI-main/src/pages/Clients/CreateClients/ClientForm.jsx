@@ -36,6 +36,9 @@ const blank = () => ({
     secondaryPhoneCode: "+44",
     secondaryPhoneType: "",
     highlights: "",
+    initialRateAmount: "",
+    initialRateUnit: "HOURLY",
+    initialRateEffectiveFrom: new Date().toISOString().slice(0, 10),
     addresses: [blankAddress()],
 });
 const scalar = [
@@ -54,6 +57,9 @@ const scalar = [
     "secondaryPhoneCode",
     "secondaryPhoneType",
     "highlights",
+    "initialRateAmount",
+    "initialRateUnit",
+    "initialRateEffectiveFrom",
 ];
 export default function ClientForm({ editing = false }) {
     const { id } = useParams(),
@@ -170,7 +176,7 @@ export default function ClientForm({ editing = false }) {
         >
             <h1 className="text-2xl font-semibold">{editing ? "Edit client" : "Add client"}</h1>
             <nav className="flex flex-wrap gap-5">
-                {["Personal details", "Contact details", "Addresses", "Highlights"].map((t, i) => (
+                {["Personal details", "Contact details", "Addresses", "Billing rate", "Highlights"].map((t, i) => (
                     <a
                         key={t}
                         href={`#client-section-${i}`}
@@ -383,6 +389,18 @@ export default function ClientForm({ editing = false }) {
             </section>
             <section
                 id="client-section-3"
+                className="scroll-mt-20 space-y-4 rounded-xl border bg-white p-6"
+            >
+                <h2 className="text-xl font-semibold">Client billing rate</h2>
+                <p className="text-sm text-slate-600">Optional now. If set, invoice previews automatically use this rate for completed visits from the effective date. A Finance administrator can change it later without altering earlier invoices.</p>
+                <div className="grid gap-5 md:grid-cols-3">
+                    <label className="block text-sm">Rate unit<select className="mt-2 w-full rounded border p-3" value={values.initialRateUnit} onChange={(e) => set("initialRateUnit", e.target.value)}><option value="HOURLY">Per hour</option><option value="HALF_DAY">Half day</option><option value="FULL_DAY">Full day</option><option value="SESSION_3H">Session (3 hours)</option><option value="SESSION_6H">Session (6 hours)</option><option value="WEEKLY">Per week</option></select></label>
+                    <label className="block text-sm">Rate (GBP)<input className="mt-2 w-full rounded border p-3" type="number" min="0" max="1000000" step="0.01" value={values.initialRateAmount} onChange={(e) => set("initialRateAmount", e.target.value)} placeholder="Optional" /></label>
+                    <label className="block text-sm">Effective from<input className="mt-2 w-full rounded border p-3" type="date" value={values.initialRateEffectiveFrom} onChange={(e) => set("initialRateEffectiveFrom", e.target.value)} /></label>
+                </div>
+            </section>
+            <section
+                id="client-section-4"
                 className="scroll-mt-20 space-y-4 rounded-xl border bg-white p-6"
             >
                 <h2 className="text-xl font-semibold">Highlights and past history</h2>

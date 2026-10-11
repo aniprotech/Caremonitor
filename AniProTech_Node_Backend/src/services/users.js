@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import { reply, fail, requireValue, pagination, dates } from "../http.js";
 import { parseJson, replaceChildren, singleton } from "./common.js";
 import { normaliseNhsNumber } from "../nhs-number.js";
@@ -165,6 +166,16 @@ export function registerUsers(ctx, route) {
     if(body.dateOfBirth && (!/^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth) || isNaN(Date.parse(body.dateOfBirth)) || new Date(body.dateOfBirth).toISOString().slice(0,10)!==body.dateOfBirth || body.dateOfBirth>new Date().toISOString().slice(0,10))) fail(400,"Enter a valid date of birth in the past");
     for(const name of ['primaryPhone','secondaryPhone']) if(body[name] && !/^[+\d ()-]{5,25}$/.test(body[name])) fail(400,"Enter a valid phone number");
     const addresses = parseJson(body.addresses, undefined);
+    const initialRateAmount = String(body.initialRateAmount ?? "").trim();
+    const initialRateUnit = String(body.initialRateUnit || "HOURLY");
+    const initialRateEffectiveFrom = String(body.initialRateEffectiveFrom || new Date().toISOString().slice(0, 10));
+    const permittedRateUnits = client
+      ? ["HOURLY", "HALF_DAY", "FULL_DAY", "SESSION_3H", "SESSION_6H", "WEEKLY"]
+      : ["HOURLY", "DAILY", "WEEKLY", "YEARLY"];
+    if (initialRateAmount && (!Number.isFinite(Number(initialRateAmount)) || Number(initialRateAmount) < 0 || Number(initialRateAmount) > 1000000))
+      fail(400, "Enter a valid initial rate");
+    if (initialRateAmount && (!permittedRateUnits.includes(initialRateUnit) || !/^\d{4}-\d{2}-\d{2}$/.test(initialRateEffectiveFrom)))
+      fail(400, "Enter a valid rate unit and effective date");
     if(addresses !== undefined) {
       if(!Array.isArray(addresses)||addresses.length>20) fail(400,"Provide up to 20 addresses");
       for(const a of addresses){
@@ -190,6 +201,15 @@ export function registerUsers(ctx, route) {
       if (parseJson(body.filesToRemove, []).includes("profileImage"))
         data.profileImagePath = null;
       const user = await repo.save("UserEntity", data);
+      if (initialRateAmount) {
+        const ratePence = Math.round(Number(initialRateAmount) * 100);
+        await db.query(
+          `INSERT INTO node_rates(id,agency_id,user_id,kind,effective_from,hourly_pence,rate_unit,rate_pence)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+           ON CONFLICT(user_id,kind,effective_from) DO UPDATE SET hourly_pence=EXCLUDED.hourly_pence,rate_unit=EXCLUDED.rate_unit,rate_pence=EXCLUDED.rate_pence`,
+          [randomUUID(), req.user.agencyId, user.id, client ? "BILLING" : "PAY", initialRateEffectiveFrom, initialRateUnit === "HOURLY" ? ratePence : 0, initialRateUnit, ratePence],
+        );
+      }
       await replaceChildren(
         repo,
         "UserPrimaryAddressEntity",
