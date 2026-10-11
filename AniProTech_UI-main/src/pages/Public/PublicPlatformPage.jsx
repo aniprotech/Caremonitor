@@ -38,6 +38,7 @@ const products = {
 export default function PublicPlatformPage() {
     const { product } = useParams();
     const detail = products[product];
+    const signedIn = localStorage.getItem("access_token");
     if (!detail) return <Navigate to="/" replace />;
     const description = `${detail.title} in Caremonitor by Aniprotech. ${detail.intro}`;
 
@@ -46,7 +47,7 @@ export default function PublicPlatformPage() {
         <header className="border-b border-white/10 bg-[#071A33]">
             <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 lg:px-8">
                 <Link to="/" aria-label="Caremonitor home"><img src="/brand-logo.png" alt="Caremonitor by Aniprotech" className="w-32 rounded-lg sm:w-44" /></Link>
-                <Link to="/login" className="inline-flex items-center gap-2 rounded-full bg-[#00b8e9] px-5 py-3 text-sm font-bold text-[#071A33]">Sign in <ArrowRight size={16} /></Link>
+                <Link to={signedIn ? "/admin/dashboard" : "/login"} className="inline-flex items-center gap-2 rounded-full bg-[#00b8e9] px-5 py-3 text-sm font-bold text-[#071A33]">{signedIn ? "Dashboard" : "Sign in"} <ArrowRight size={16} /></Link>
             </div>
         </header>
         <section className="relative overflow-hidden bg-[#071A33] px-5 py-16 text-white sm:py-24">

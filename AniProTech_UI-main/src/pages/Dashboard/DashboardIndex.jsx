@@ -3,9 +3,21 @@ import { Link } from "react-router-dom";
 import { CalendarDays, CheckCircle2, ClipboardList, CreditCard, RefreshCw, ShieldAlert, Users } from "lucide-react";
 import { _get } from "../../utils/ApiService";
 
-const londonToday = () => new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit",
-}).format(new Date());
+const londonToday = () => {
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+    const value = Object.fromEntries(parts.filter(({ type }) => type !== "literal").map(({ type, value: part }) => [type, part]));
+    return `${value.year}-${value.month}-${value.day}`;
+};
+const addDays = (date, days) => { const next = new Date(`${date}T12:00:00Z`); next.setUTCDate(next.getUTCDate() + days); return next.toISOString().slice(0, 10); };
+const selectedPeriod = (range, customFrom, customTo) => {
+    const today = londonToday();
+    if (range === "yesterday") { const yesterday = addDays(today, -1); return { from: yesterday, to: yesterday, label: "Yesterday" }; }
+    if (range === "last7") return { from: addDays(today, -6), to: today, label: "Last 7 days" };
+    if (range === "last30") return { from: addDays(today, -29), to: today, label: "Last 30 days" };
+    if (range === "lastWeek") { const day = new Date(`${today}T12:00:00Z`).getUTCDay() || 7; const end = addDays(today, -day); return { from: addDays(end, -6), to: end, label: "Last week" }; }
+    if (range === "custom" && customFrom && customTo && customFrom <= customTo) return { from: customFrom, to: customTo, label: "Custom range" };
+    return { from: today, to: today, label: "Today" };
+};
 
 const unwrap = (response) => response?.data?.results?.data;
 
@@ -15,13 +27,17 @@ export default function DashboardIndex() {
     const [accounting, setAccounting] = useState(null);
     const [loading, setLoading] = useState(true);
     const [updatedAt, setUpdatedAt] = useState(null);
+    const [range, setRange] = useState("today");
+    const [customFrom, setCustomFrom] = useState("");
+    const [customTo, setCustomTo] = useState("");
+    const period = selectedPeriod(range, customFrom, customTo);
 
     const load = useCallback(async () => {
         setLoading(true);
-        const today = londonToday();
+        const { from, to } = period;
         const [reportResult, reconciliationResult, accountingResult] = await Promise.allSettled([
-            _get("/api/reports/summary", { params: { from: today, to: today } }),
-            _get("/api/reports/reconciliation", { params: { from: today, to: today } }),
+            _get("/api/reports/summary", { params: { from, to } }),
+            _get("/api/reports/reconciliation", { params: { from, to } }),
             _get("/api/accounting/summary"),
         ]);
         if (reportResult.status === "fulfilled") setSummary(unwrap(reportResult.value));
@@ -29,7 +45,7 @@ export default function DashboardIndex() {
         if (accountingResult.status === "fulfilled") setAccounting(unwrap(accountingResult.value));
         setUpdatedAt(new Date());
         setLoading(false);
-    }, []);
+    }, [period.from, period.to]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -42,10 +58,10 @@ export default function DashboardIndex() {
     }, [summary]);
 
     const cards = [
-        { label: "Today's visits", value: figures.visitCount, detail: "Scheduled care visits", icon: CalendarDays, tone: "bg-cyan-50 text-cyan-800" },
-        { label: "Completed", value: figures.completed, detail: "Visits recorded as complete", icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-800" },
-        { label: "Still planned", value: figures.scheduled, detail: "Draft, scheduled or in progress", icon: ClipboardList, tone: "bg-indigo-50 text-indigo-800" },
-        { label: "Needs review", value: reconciliation?.issues?.length ?? "—", detail: "Completed visits requiring finance review", icon: ShieldAlert, tone: "bg-amber-50 text-amber-900" },
+        { label: `${period.label} visits`, value: figures.visitCount, detail: "Scheduled care visits", icon: CalendarDays, tone: "bg-cyan-50 text-cyan-800", to: `/admin/rosters?date=${period.to}` },
+        { label: "Completed", value: figures.completed, detail: "Visits recorded as complete", icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-800", to: `/admin/reports?from=${period.from}&to=${period.to}` },
+        { label: "Still planned", value: figures.scheduled, detail: "Draft, scheduled or in progress", icon: ClipboardList, tone: "bg-indigo-50 text-indigo-800", to: `/admin/rosters?date=${period.to}` },
+        { label: "Needs review", value: reconciliation?.issues?.length ?? "—", detail: "Completed visits requiring finance review", icon: ShieldAlert, tone: "bg-amber-50 text-amber-900", to: `/admin/reports?from=${period.from}&to=${period.to}` },
     ];
 
     return <main className="min-h-screen bg-[#f5faff] p-4 text-[#10233f] md:p-8">
@@ -54,20 +70,28 @@ export default function DashboardIndex() {
                 <div>
                     <p className="text-sm font-semibold uppercase tracking-wide text-cyan-800">Caremonitor workspace</p>
                     <h1 className="mt-1 text-3xl font-bold">Dashboard</h1>
-                    <p className="mt-2 text-slate-600">Today’s care delivery, quality and finance overview. Times are shown in Europe/London.</p>
+                    <p className="mt-2 text-slate-600">Care delivery, quality and finance overview for {period.label.toLowerCase()}. Times are shown in Europe/London.</p>
                 </div>
                 <button type="button" onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-lg border border-[#0b294a] bg-white px-4 py-2 font-semibold text-[#0b294a] hover:bg-cyan-50 disabled:opacity-50">
                     <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> Refresh
                 </button>
             </header>
 
-            <section aria-label="Today’s overview" className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {cards.map(({ label, value, detail, icon: Icon, tone }) => <article key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section aria-label="Dashboard period" className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                    {[['today', 'Today'], ['yesterday', 'Yesterday'], ['last7', 'Last 7 days'], ['lastWeek', 'Last week'], ['last30', 'Last 30 days'], ['custom', 'Custom']].map(([value, label]) => <button key={value} type="button" onClick={() => setRange(value)} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${range === value ? "border-[#0b294a] bg-[#0b294a] text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-cyan-50"}`}>{label}</button>)}
+                    <span className="ml-auto text-sm text-slate-500">{period.from} to {period.to}</span>
+                </div>
+                {range === "custom" && <div className="mt-3 flex flex-wrap items-end gap-3"><label className="text-sm font-medium">From<input type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} className="mt-1 block rounded border border-slate-300 px-3 py-2" /></label><label className="text-sm font-medium">To<input type="date" min={customFrom || undefined} value={customTo} onChange={(event) => setCustomTo(event.target.value)} className="mt-1 block rounded border border-slate-300 px-3 py-2" /></label>{customFrom && customTo && customFrom > customTo && <p role="alert" className="pb-2 text-sm text-red-700">The end date must be on or after the start date.</p>}</div>}
+            </section>
+
+            <section aria-label={`${period.label} overview`} className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {cards.map(({ label, value, detail, icon: Icon, tone, to }) => <Link key={label} to={to} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-400 hover:shadow-md">
                     <div className={`inline-flex rounded-lg p-2 ${tone}`}><Icon size={20} /></div>
                     <p className="mt-4 text-sm font-medium text-slate-600">{label}</p>
                     <p className="mt-1 text-3xl font-bold">{loading ? "…" : value}</p>
                     <p className="mt-1 text-sm text-slate-500">{detail}</p>
-                </article>)}
+                </Link>)}
             </section>
 
             <section className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,1fr)]">
@@ -84,10 +108,10 @@ export default function DashboardIndex() {
                 <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h2 className="text-xl font-semibold">Organisation snapshot</h2>
                     <dl className="mt-5 space-y-4 text-sm">
-                        <Snapshot label="Active clients" value={summary?.people?.clients ?? "—"} />
-                        <Snapshot label="Active team members" value={summary?.people?.staff ?? "—"} />
-                        <Snapshot label="Open quality cases" value={summary?.quality?.openCases ?? "—"} emphasis={Number(summary?.quality?.openCases) > 0} />
-                        <Snapshot label="Visit invoices" value={accounting?.visitInvoices ?? "—"} />
+                        <Snapshot label="Active clients" value={summary?.people?.clients ?? "—"} to="/admin/clients" />
+                        <Snapshot label="Active team members" value={summary?.people?.staff ?? "—"} to="/admin/teams" />
+                        <Snapshot label="Open quality cases" value={summary?.quality?.openCases ?? "—"} emphasis={Number(summary?.quality?.openCases) > 0} to="/admin/governance" />
+                        <Snapshot label="Visit invoices" value={accounting?.visitInvoices ?? "—"} to="/admin/accounting" />
                     </dl>
                     <Link to="/admin/reports" className="mt-6 inline-flex font-semibold text-cyan-800 underline underline-offset-4">Open reporting and assurance</Link>
                 </aside>
@@ -105,6 +129,6 @@ function QuickLink({ to, label, description, icon: Icon }) {
     </Link>;
 }
 
-function Snapshot({ label, value, emphasis }) {
-    return <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 last:border-0"><dt className="text-slate-600">{label}</dt><dd className={emphasis ? "font-bold text-amber-800" : "font-bold"}>{value}</dd></div>;
+function Snapshot({ label, value, emphasis, to }) {
+    return <Link to={to} className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 last:border-0 hover:text-cyan-800"><span className="text-slate-600">{label}</span><strong className={emphasis ? "text-amber-800" : ""}>{value}</strong></Link>;
 }

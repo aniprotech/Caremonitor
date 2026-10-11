@@ -63,6 +63,8 @@ function SectionLabel({ children }) {
 
 export default function PublicHomePage() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const workspaceLink = localStorage.getItem("access_token") ? "/admin/dashboard" : "/login";
+    const workspaceLabel = localStorage.getItem("access_token") ? "Dashboard" : "Sign in";
     return <main className="min-h-screen overflow-hidden bg-white font-poppins text-[#071A33]">
         <SeoMeta title="Caremonitor by Aniprotech | Connected care management" description={description} path="/" schema={schema} />
 
@@ -79,14 +81,14 @@ export default function PublicHomePage() {
                 <div className="flex items-center gap-3">
                     <Link to="/support" className="hidden px-3 py-2 text-sm font-semibold text-slate-200 transition hover:text-white sm:block">Talk to us</Link>
                     <button type="button" aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileMenuOpen} aria-controls="mobile-navigation" onClick={() => setMobileMenuOpen((open) => !open)} className="grid h-11 w-11 place-items-center rounded-full border border-white/20 text-white transition hover:border-cyan-300 hover:text-cyan-300 lg:hidden">{mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
-                    <Link to="/login" className="hidden items-center gap-2 rounded-full bg-[#00b8e9] px-5 py-3 text-sm font-bold text-[#071A33] transition hover:bg-[#45dcff] min-[390px]:inline-flex">Sign in <ArrowRight size={16} /></Link>
+                    <Link to={workspaceLink} className="hidden items-center gap-2 rounded-full bg-[#00b8e9] px-5 py-3 text-sm font-bold text-[#071A33] transition hover:bg-[#45dcff] min-[390px]:inline-flex">{workspaceLabel} <ArrowRight size={16} /></Link>
                 </div>
             </div>
             {mobileMenuOpen && <nav id="mobile-navigation" aria-label="Mobile navigation" className="border-t border-white/10 bg-[#071A33] px-5 pb-5 pt-3 text-white lg:hidden">
                 <div className="mx-auto flex max-w-7xl flex-col gap-1">
                     {[['Products', '/products'], ['Solutions', '/solutions'], ['Case studies', '/case-studies'], ['Resources', '/resources'], ['About us', '/about']].map(([label, to]) => <Link key={to} to={to} onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 font-semibold transition hover:bg-white/10 hover:text-cyan-300">{label}</Link>)}
                     <Link to="/support" onClick={() => setMobileMenuOpen(false)} className="rounded-xl px-4 py-3 font-semibold transition hover:bg-white/10 hover:text-cyan-300">Talk to us</Link>
-                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-[#00b8e9] px-5 py-3 font-bold text-[#071A33] min-[390px]:hidden">Sign in <ArrowRight size={16} /></Link>
+                    <Link to={workspaceLink} onClick={() => setMobileMenuOpen(false)} className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-[#00b8e9] px-5 py-3 font-bold text-[#071A33] min-[390px]:hidden">{workspaceLabel} <ArrowRight size={16} /></Link>
                 </div>
             </nav>}
         </header>
