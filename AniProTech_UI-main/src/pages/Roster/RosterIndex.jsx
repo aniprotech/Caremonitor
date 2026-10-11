@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import RosterBoard from "./RosterBoard";
 import { _get, _post, _put } from "../../utils/ApiService";
 import { showSuccess } from "../../utils/toaster";
@@ -31,7 +31,10 @@ function Field({ label, children }) {
     );
 }
 export default function RosterIndex() {
-    const [week, setWeek] = useState(() => monday(today())),
+    const [searchParams] = useSearchParams();
+    const requestedDate = searchParams.get("date");
+    const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || "") ? requestedDate : today();
+    const [week, setWeek] = useState(() => monday(selectedDate)),
         [options, setOptions] = useState({ staff: [], clients: [], canManage: false });
     const [visits, setVisits] = useState([]),
         [loading, setLoading] = useState(true),

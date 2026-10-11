@@ -59,9 +59,9 @@ export default function DashboardIndex() {
 
     const cards = [
         { label: `${period.label} visits`, value: figures.visitCount, detail: "Scheduled care visits", icon: CalendarDays, tone: "bg-cyan-50 text-cyan-800", to: `/admin/rosters?date=${period.to}` },
-        { label: "Completed", value: figures.completed, detail: "Visits recorded as complete", icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-800", to: `/admin/reports?from=${period.from}&to=${period.to}` },
+        { label: "Completed", value: figures.completed, detail: "Visits recorded as complete", icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-800", to: `/admin/reports?from=${period.from}&to=${period.to}&tab=delivery` },
         { label: "Still planned", value: figures.scheduled, detail: "Draft, scheduled or in progress", icon: ClipboardList, tone: "bg-indigo-50 text-indigo-800", to: `/admin/rosters?date=${period.to}` },
-        { label: "Needs review", value: reconciliation?.issues?.length ?? "—", detail: "Completed visits requiring finance review", icon: ShieldAlert, tone: "bg-amber-50 text-amber-900", to: `/admin/reports?from=${period.from}&to=${period.to}` },
+        { label: "Needs review", value: reconciliation?.issues?.length ?? "—", detail: "Completed visits requiring finance review", icon: ShieldAlert, tone: "bg-amber-50 text-amber-900", to: `/admin/reports?from=${period.from}&to=${period.to}&tab=finance` },
     ];
 
     return <main className="min-h-screen bg-[#f5faff] p-4 text-[#10233f] md:p-8">

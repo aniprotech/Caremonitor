@@ -19,7 +19,9 @@ const previousPeriod = (from, to) => {
 export default function ReportIndex() {
     const [params] = useSearchParams();
     const [from, setFrom] = useState(() => /^\d{4}-\d{2}-\d{2}$/.test(params.get("from") || "") ? params.get("from") : londonToday().slice(0, 8) + "01"), [to, setTo] = useState(() => /^\d{4}-\d{2}-\d{2}$/.test(params.get("to") || "") ? params.get("to") : londonToday());
-    const [tab, setTab] = useState("library"), [data, setData] = useState(null), [comparison, setComparison] = useState(null), [reconciliation, setReconciliation] = useState(null), [audits, setAudits] = useState(null), [graceMinutes, setGraceMinutes] = useState(5);
+    const tabs = [["library", "Report library"], ["overview", "Executive overview"], ["delivery", "Visit delivery"], ["late", "Late visits"], ["safeguarding", "Safeguarding"], ["medication", "Medication audit"], ["people", "People and clients"], ["finance", "Finance assurance"]];
+    const validTab = (value) => tabs.some(([key]) => key === value) ? value : "library";
+    const [tab, setTab] = useState(() => validTab(params.get("tab"))), [data, setData] = useState(null), [comparison, setComparison] = useState(null), [reconciliation, setReconciliation] = useState(null), [audits, setAudits] = useState(null), [graceMinutes, setGraceMinutes] = useState(5);
     const [error, setError] = useState(""), [loading, setLoading] = useState(false), [search, setSearch] = useState("");
     const load = useCallback(async () => {
         setLoading(true); setError("");
@@ -36,12 +38,17 @@ export default function ReportIndex() {
         finally { setLoading(false); }
     }, [from, to, graceMinutes]);
     useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        const requestedFrom = params.get("from"), requestedTo = params.get("to");
+        if (/^\d{4}-\d{2}-\d{2}$/.test(requestedFrom || "")) setFrom(requestedFrom);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(requestedTo || "")) setTo(requestedTo);
+        setTab(validTab(params.get("tab")));
+    }, [params]);
     const completed = data?.byStatus.find((s) => s.status === "COMPLETED") || { visits: 0 };
     const total = data?.byStatus.filter((s) => s.status !== "CANCELLED").reduce((n, s) => n + s.visits, 0) || 0;
     const planned = data?.byStatus.reduce((n, s) => n + Number(s.minutes || 0), 0) || 0;
     const actual = data?.byStatus.reduce((n, s) => n + Number(s.actualMinutes || 0), 0) || 0;
     const clients = useMemo(() => (data?.clients || []).filter((x) => x.name.toLowerCase().includes(search.toLowerCase())), [data, search]);
-    const tabs = [["library", "Report library"], ["overview", "Executive overview"], ["delivery", "Visit delivery"], ["late", "Late visits"], ["safeguarding", "Safeguarding"], ["medication", "Medication audit"], ["people", "People and clients"], ["finance", "Finance assurance"]];
     const exportOverview = () => data && downloadCsv(`caremonitor-report-${from}-${to}.csv`, [["Metric", "Value"], ["Visits", total], ["Completed visits", completed.visits], ["Planned hours", hours(planned)], ["Actual delivered hours", hours(actual)], ["Open quality cases", data.quality.openCases], ["Reconciliation issues", reconciliation?.issues.length || 0]]);
     return <Page title="Reporting and assurance" description="Live operational, care-delivery, workforce, finance and quality reporting from Caremonitor data. Times use Europe/London.">
         <section className="rounded-xl border bg-white p-4"><div className="flex flex-wrap items-end gap-3"><Field label="From"><input className={inputClass} type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field><Field label="To"><input className={inputClass} type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field><Field label="Late grace (minutes)"><select className={inputClass} value={graceMinutes} onChange={(e) => setGraceMinutes(Number(e.target.value))}>{[0,5,10,15,30,60].map((n) => <option key={n} value={n}>{n}</option>)}</select></Field><button className={buttonClass} onClick={load} disabled={loading}>Refresh</button><button className={buttonClass} onClick={exportOverview} disabled={!data}>Export assurance summary</button></div><div className="mt-4 flex flex-wrap gap-2">{tabs.map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={tab === key ? buttonClass : "rounded-lg border px-4 py-2 text-sm font-semibold text-slate-700"}>{label}</button>)}</div></section>
