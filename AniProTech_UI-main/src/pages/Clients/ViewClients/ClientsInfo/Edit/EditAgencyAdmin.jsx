@@ -359,6 +359,7 @@ const EditAgencyAdmin = () => {
                     name="agencyAdmin.communicationOrInformationNeeds"
                     value={agencyAdmin?.communicationOrInformationNeeds || []}
                     options={clientsCommunicationSupportOptions}
+                    exclusiveValue="NO_REQUIREMENTS"
                     valueChange={(e) => setFieldValue("agencyAdmin.communicationOrInformationNeeds", e.target.value)}
                 />
 

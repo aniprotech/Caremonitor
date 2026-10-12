@@ -283,6 +283,7 @@ export const clientsContactMethodOptions = [
     { label: "Email", value: "EMAIL" },
     { label: "Phone", value: "PHONE" },
     { label: "Text", value: "TEXT" },
+    { label: "WhatsApp", value: "WHATSAPP" },
     { label: "Mail", value: "MAIL" },
 ];
 
@@ -320,6 +321,7 @@ export const clientsSexualOrientationOptions = [
 ];
 
 export const clientsCommunicationSupportOptions = [
+    { label: "No requirements identified", value: "NO_REQUIREMENTS" },
     { label: "Requires Specific Contact Method", value: "SPECIFIC_CONTACT_METHOD" },
     { label: "Requires Specific Information Format", value: "SPECIFIC_INFORMATION_FORMAT" },
     { label: "Requires Communication Professional", value: "COMMUNICATION_PROFESSIONAL" },

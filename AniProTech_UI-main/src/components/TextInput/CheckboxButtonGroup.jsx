@@ -10,6 +10,7 @@ const CheckboxButtonGroup = ({
   required,
   error,
   disabled = false,
+  exclusiveValue,
   style,
 }) => {
   // Ensure value is always an array
@@ -18,10 +19,12 @@ const CheckboxButtonGroup = ({
 
   const handleChange = (optionValue) => {
     let updated;
-    if (safeValue.includes(optionValue)) {
+    if (optionValue === exclusiveValue) {
+      updated = safeValue.includes(optionValue) ? [] : [optionValue];
+    } else if (safeValue.includes(optionValue)) {
       updated = safeValue.filter((val) => val !== optionValue);
     } else {
-      updated = [...safeValue, optionValue];
+      updated = [...safeValue.filter((val) => val !== exclusiveValue), optionValue];
     }
 
     // Pass the array directly in the target.value
@@ -87,6 +90,7 @@ CheckboxButtonGroup.propTypes = {
   required: PropTypes.bool,
   error: PropTypes.string,
   disabled: PropTypes.bool,
+  exclusiveValue: PropTypes.string,
   style: PropTypes.string,
 };
 

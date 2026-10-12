@@ -1,8 +1,8 @@
 {
   "source": "dmd",
-  "release": "10.0.0-2026-10-05",
+  "release": "10.1.0-2026-10-12",
   "sourceUrl": "https://isd.digital.nhs.uk/trud/",
-  "retrievedAt": "2026-10-05T07:46:57.168956+00:00",
+  "retrievedAt": "2026-10-12T12:46:41.431155+00:00",
   "records": [
     {
       "code": "526311000001106",
@@ -1146619,6 +1146619,13 @@
       "country": "United Kingdom"
     },
     {
+      "code": "46167711000001108",
+      "name": "Metformin 500mg/5ml oral solution sugar free",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
       "code": "46168011000001107",
       "name": "Senease Max Strength Twelve Years Plus 15mg tablets",
       "kind": "medicine",
@@ -1149146,6 +1149153,27 @@
       "country": "United Kingdom"
     },
     {
+      "code": "46282011000001108",
+      "name": "EURneffy 1mg/100microlitres nasal spray unit dose",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46282111000001109",
+      "name": "Buspirone 5mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46282611000001101",
+      "name": "Buspirone 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
       "code": "46282911000001107",
       "name": "Procyclidine 2.5mg tablets",
       "kind": "medicine",
@@ -1149176,6 +1149204,13 @@
     {
       "code": "46284211000001107",
       "name": "Clonazepam 2mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46284611000001109",
+      "name": "Otulfi 90mg/1ml solution for injection pre-filled pens",
       "kind": "medicine",
       "conceptType": "AMP",
       "country": "United Kingdom"
@@ -1149276,6 +1149311,223 @@
       "name": "Compleat paediatric Oral Blends",
       "kind": "medicine",
       "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46291211000001106",
+      "name": "Ambrisentan 5mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46291411000001105",
+      "name": "Ambrisentan 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46291611000001108",
+      "name": "Eltrombopag 25mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46291811000001107",
+      "name": "Eltrombopag 50mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46292111000001105",
+      "name": "Camcevi 21mg prolonged-release suspension for injection pre-filled syringes",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46292311000001107",
+      "name": "Co-careldopa 12.5mg/50mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46292511000001101",
+      "name": "Fexofenadine 120mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46292611000001102",
+      "name": "Co-careldopa 25mg/100mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46292911000001108",
+      "name": "Fexofenadine 180mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46293211000001105",
+      "name": "Enalapril 20mg / Lercanidipine 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46293811000001106",
+      "name": "Enalapril 10mg / Lercanidipine 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46294711000001101",
+      "name": "Desogestrel 75microgram tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46294911000001104",
+      "name": "Brivaracetam 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46295111000001103",
+      "name": "Brivaracetam 25mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46295311000001101",
+      "name": "Brivaracetam 50mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46295611000001106",
+      "name": "Desogestrel 75microgram tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46295911000001100",
+      "name": "Brivaracetam 75mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46296111000001109",
+      "name": "Brivaracetam 100mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46297311000001109",
+      "name": "Atracurium besilate 250mg/25ml solution for injection vials",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46297511000001103",
+      "name": "Co-trimoxazole 80mg/400mg/5ml solution for infusion ampoules",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46297811000001100",
+      "name": "Famotidine 20mg/2ml solution for injection vials",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46298611000001100",
+      "name": "Daptomycin 350mg powder for solution for infusion vials",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46299111000001101",
+      "name": "Epirubicin 200mg/100ml solution for infusion vials",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46299311000001104",
+      "name": "Daptomycin 500mg powder for solution for infusion vials",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46304411000001102",
+      "name": "Benzylpenicillin sodium 600mg powder for solution for injection vials",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46304911000001105",
+      "name": "Melatonin 3mg tablets",
+      "kind": "medicine",
+      "conceptType": "AMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46312511000001105",
+      "name": "Famotidine 20mg/2ml solution for injection vials",
+      "kind": "medicine",
+      "conceptType": "VMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46312211000001107",
+      "name": "Adrenaline (base) 1mg/100microlitres nasal spray unit dose",
+      "kind": "medicine",
+      "conceptType": "VMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46312611000001109",
+      "name": "Leuprorelin 21mg prolonged-release suspension for injection pre-filled syringes",
+      "kind": "medicine",
+      "conceptType": "VMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46312411000001106",
+      "name": "Enalapril 20mg / Lercanidipine 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "VMP",
+      "country": "United Kingdom"
+    },
+    {
+      "code": "46312311000001104",
+      "name": "Enalapril 10mg / Lercanidipine 10mg tablets",
+      "kind": "medicine",
+      "conceptType": "VMP",
       "country": "United Kingdom"
     },
     {
@@ -1277408,7 +1277660,7 @@
     },
     {
       "code": "5339811000001107",
-      "name": "Hydrocolloid dressing semi-permeable sterile with adhesive border 19cm x 17.7 cm sacral",
+      "name": "Hydrocolloid dressing semi-permeable sterile with adhesive border 19cm x 17.7cm sacral",
       "kind": "medicine",
       "conceptType": "VMP",
       "country": "United Kingdom"
@@ -1317685,5 +1317937,5 @@
       "country": "United Kingdom"
     }
   ],
-  "inputSha256": "2cf7a678532427317b934437430beb7032fa8c4ef187abb4471f05ddfe4b8170"
+  "inputSha256": "c4e09aede9c6c0cc28155e28c2d67385e40f4201fb802d271b10818ae4fc1608"
 }

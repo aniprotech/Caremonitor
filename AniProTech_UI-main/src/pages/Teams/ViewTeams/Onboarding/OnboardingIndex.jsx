@@ -83,7 +83,7 @@ const OnboardingIndex = () => {
                     rows={[
                         { label: "Start date", value: data?.started },
                         { label: "National Insurance No.", value: data?.niNumber },
-                        { label: "Social Worker No.", value: data?.socialWorkerNumber },
+                        { label: "Staff contact number", value: data?.socialWorkerNumber },
                         { label: "Employee No.", value: data?.employeeNumber },
                         { label: "Role", value: data?.role, isEnum: true },
                         { label: "Contract type", value: data?.contractType, isEnum: true },
