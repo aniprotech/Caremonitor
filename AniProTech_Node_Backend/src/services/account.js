@@ -28,6 +28,10 @@ const accountSchema = z.object({
   requireLocationForCheckIn: z.boolean().default(true),
   allowVoiceNotes: z.boolean().default(true),
   notifyClientOnArrival: z.boolean().default(true),
+  nhsOdsCode: z.union([z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5}$/, "ODS code must be five letters or numbers"), z.literal("")]).optional(),
+  nhsOdsName: optionalText(160),
+  nhsOdsPublicationStatus: z.enum(["NOT_CONFIGURED","ACTIVE_PENDING_PUBLICATION","PUBLISHED","UNVERIFIED"]).default("NOT_CONFIGURED"),
+  nhsOdsPublishedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).optional(),
 }).superRefine((value, issue) => {
   if (!postcodeValid(value.country, value.postcode)) issue.addIssue({ code:"custom", path:["postcode"], message:"Postcode format does not match the selected country" });
 });
@@ -48,7 +52,7 @@ export function registerAccount(ctx, route) {
     const organisation = requireValue((await db.query(
       `SELECT id,name,legal_name,business_type,registration_number,phone,website,address_line1,
        address_line2,state,city,postcode,country,timezone,status,logo_path,support_email,support_phone,
-       carer_app_message,carer_app_settings,updated_at FROM node_agencies WHERE id=$1`,
+       carer_app_message,carer_app_settings,nhs_ods_code,nhs_ods_name,nhs_ods_publication_status,nhs_ods_published_at,updated_at FROM node_agencies WHERE id=$1`,
       [req.user.agencyId])).rows[0], "Organisation not found");
     return { user, organisation };
   };
@@ -80,6 +84,9 @@ export function registerAccount(ctx, route) {
       requireLocationForCheckIn:booleanValue(parsedSettings,"requireLocationForCheckIn"),
       allowVoiceNotes:booleanValue(parsedSettings,"allowVoiceNotes"),
       notifyClientOnArrival:booleanValue(parsedSettings,"notifyClientOnArrival"),
+      nhsOdsCode:value(req.body,"nhsOdsCode") || "", nhsOdsName:value(req.body,"nhsOdsName") || "",
+      nhsOdsPublicationStatus:value(req.body,"nhsOdsPublicationStatus") || "NOT_CONFIGURED",
+      nhsOdsPublishedAt:value(req.body,"nhsOdsPublishedAt") || "",
     });
     if (!parsed.success) fail(400, parsed.error.issues[0]?.message || "Account details are invalid");
     const data = parsed.data;
@@ -97,13 +104,15 @@ export function registerAccount(ctx, route) {
     await db.query(`UPDATE node_agencies SET name=$1,legal_name=$2,business_type=$3,registration_number=$4,
       phone=$5,website=$6,address_line1=$7,address_line2=$8,state=$9,city=$10,postcode=$11,country=$12,timezone=$13,
       support_email=$14,support_phone=$15,carer_app_message=$16,carer_app_settings=$17,
-      logo_path=COALESCE($18,logo_path),updated_at=CURRENT_TIMESTAMP,updated_by=$19 WHERE id=$20`,
+      nhs_ods_code=$18,nhs_ods_name=$19,nhs_ods_publication_status=$20,nhs_ods_published_at=$21,
+      logo_path=COALESCE($22,logo_path),updated_at=CURRENT_TIMESTAMP,updated_by=$23 WHERE id=$24`,
       [data.organisationName,data.legalName||null,data.businessType,data.registrationNumber||null,data.organisationPhone,
        data.website||null,data.addressLine1,data.addressLine2||null,data.state,data.city,data.postcode,data.country,data.timezone,
        data.supportEmail||null,data.supportPhone||null,data.carerAppMessage||null,JSON.stringify({
          allowPhotoUploads:data.allowPhotoUploads,requireLocationForCheckIn:data.requireLocationForCheckIn,
          allowVoiceNotes:data.allowVoiceNotes,notifyClientOnArrival:data.notifyClientOnArrival,
-       }),logoPath||null,req.user.id,req.user.agencyId]);
+       }),data.nhsOdsCode||null,data.nhsOdsName||null,data.nhsOdsPublicationStatus,data.nhsOdsPublishedAt||null,
+       logoPath||null,req.user.id,req.user.agencyId]);
     return reply(res, await output(req), "Account settings updated");
   }, { multipart:true });
 }

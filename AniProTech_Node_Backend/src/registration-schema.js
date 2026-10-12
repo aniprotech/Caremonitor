@@ -35,4 +35,17 @@ export async function initializeRegistration(db) {
   await db.query(`ALTER TABLE node_agencies DROP CONSTRAINT IF EXISTS node_agencies_status_check`);
   await db.query(`ALTER TABLE node_agencies ADD CONSTRAINT node_agencies_status_check
     CHECK(status IN ('PENDING','ACTIVE','SUSPENDED','REJECTED'))`);
+  await db.query(`ALTER TABLE node_agencies
+    ADD COLUMN IF NOT EXISTS nhs_ods_code text,
+    ADD COLUMN IF NOT EXISTS nhs_ods_name text,
+    ADD COLUMN IF NOT EXISTS nhs_ods_publication_status text NOT NULL DEFAULT 'NOT_CONFIGURED',
+    ADD COLUMN IF NOT EXISTS nhs_ods_published_at date`);
+  await db.query(`ALTER TABLE node_agencies DROP CONSTRAINT IF EXISTS node_agencies_nhs_ods_publication_status_check`);
+  await db.query(`ALTER TABLE node_agencies ADD CONSTRAINT node_agencies_nhs_ods_publication_status_check
+    CHECK(nhs_ods_publication_status IN ('NOT_CONFIGURED','ACTIVE_PENDING_PUBLICATION','PUBLISHED','UNVERIFIED'))`);
+  // ODS allocated this identity to the Caremonitor operating organisation on
+  // 12 October 2026. Preserve any value an administrator has already set.
+  await db.query(`UPDATE node_agencies SET nhs_ods_code='W4L8U',nhs_ods_name='ANIKA IT SOLUTIONS LIMITED',
+      nhs_ods_publication_status='ACTIVE_PENDING_PUBLICATION',updated_at=CURRENT_TIMESTAMP
+    WHERE lower(coalesce(legal_name,''))='anika it solutions limited' AND nhs_ods_code IS NULL`);
 }
