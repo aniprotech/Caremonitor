@@ -18159,7 +18159,8 @@
       "MAIL",
       "EMAIL",
       "PHONE",
-      "TEXT"
+      "TEXT",
+      "WHATSAPP"
     ],
     "ClientInformationFundingOption": [
       "LOCAL_AUTHORITY",
