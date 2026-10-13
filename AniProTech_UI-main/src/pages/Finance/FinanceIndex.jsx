@@ -573,7 +573,7 @@ export default function FinanceIndex() {
                                                     {v.startTime}–{v.endTime}
                                                 </td>
                                                 <td>
-                                                    <Link to={`/admin/clients/${v.clientId}/carer-feed?visit=${v.id}`}>{v.client}</Link>
+                                                    <Link to={`/admin/clients/${v.clientId}/client-feed?visit=${v.id}`}>{v.client}</Link>
                                                     <br />
                                                     {v.carer || "Unassigned"}
                                                 </td>
