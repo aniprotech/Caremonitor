@@ -16,8 +16,13 @@ export async function runGovernanceReports({db,mail,frontendUrl}){
       return {schedule,cases,visits,documents};
     });
     if(!result)continue;
-    const {schedule,cases,visits,documents}=result,recipients=Array.isArray(schedule.recipient_emails)?schedule.recipient_emails:JSON.parse(schedule.recipient_emails||"[]");
+    const {schedule,cases,visits,documents}=result,additionalRecipients=Array.isArray(schedule.recipient_emails)?schedule.recipient_emails:JSON.parse(schedule.recipient_emails||"[]");
+    // Resolve owners and admins at send time so role or email changes take effect
+    // immediately, while retaining any explicitly added organisation recipients.
+    const organisationRecipients=(await db.query(`SELECT DISTINCT lower(email) AS email FROM users WHERE agency_id=$1 AND role IN ('ADMIN','SUPERADMIN') AND is_active=true AND deleted_at IS NULL AND email IS NOT NULL`,[schedule.agency_id])).rows.map((row)=>row.email);
+    const recipients=[...new Set([...organisationRecipients,...additionalRecipients.map((email)=>String(email).toLowerCase())])].filter((email)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
     const text=`Caremonitor ${schedule.name}\n\nLast 30 days\nVisits: ${visits.total} (${visits.completed} completed)\nQuality cases: ${cases.total} (${cases.open} open, ${cases.overdue} overdue)\nFinance documents: ${documents.total}\n\nSign in for protected details and reconciliation. This email contains no client information.`;
+    if(!recipients.length){console.error("Scheduled governance report has no active owner or admin recipient",schedule.id);continue;}
     const attachment={filename:`caremonitor-${schedule.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || "scheduled-report"}.pdf`,content:scheduledReportPdf({name:schedule.name,cadence:schedule.cadence,generatedAt:new Date(),visits,cases,documents}),contentType:"application/pdf"};
     const outcomes=await Promise.allSettled(recipients.map(to=>mail.send({to,subject:`Caremonitor scheduled report: ${schedule.name}`,text,actionUrl:`${frontendUrl}/admin/governance`,actionLabel:"Open governance workspace",attachments:[attachment]})));
     if(outcomes.some(x=>x.status==='rejected'))console.error("A scheduled governance report recipient failed");else sent++;
