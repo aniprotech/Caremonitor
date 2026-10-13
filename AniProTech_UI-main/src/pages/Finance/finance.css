@@ -219,6 +219,9 @@
     border: 1px solid #dbe3ee;
     background: #f7fafc;
 }
+.fin-content details { margin-top: 12px; color: #344054; }
+.fin-content summary { cursor: pointer; font-size: 14px; font-weight: 600; color: #155e75; }
+.fin-history-record { margin-top: 10px; border-left: 3px solid #cbd5e1; padding-left: 12px; }
 .fin-period-control label { min-width: 170px; }
 .fin-content > article {
     border: 1px solid #dbe3ee;

@@ -15,6 +15,18 @@ const rangeFor = (period) => {
     if (period === "LAST_MONTH") { const end = new Date(`${today}T12:00:00Z`); end.setUTCDate(0); return { from: `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, "0")}-01`, to: end.toISOString().slice(0, 10) }; }
     return { from: today, to: today };
 };
+const serviceSummary = (entry) => <><p>{hours(entry.weeklyMinutes)} per week from {entry.effectiveFrom}{entry.effectiveTo ? ` to ${entry.effectiveTo}` : " onwards"}</p><p>{entry.fundingSource || "Funding source not recorded"}{entry.reference ? ` · ${entry.reference}` : ""}</p></>;
+const groupedServiceHours = (entries) => {
+    const today = londonToday();
+    return Object.values(entries.reduce((groups, entry) => {
+        (groups[entry.userId] ||= { name: entry.name, entries: [] }).entries.push(entry);
+        return groups;
+    }, {})).map((group) => {
+        const sorted = [...group.entries].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
+        const current = sorted.find((entry) => entry.effectiveFrom <= today && (!entry.effectiveTo || entry.effectiveTo >= today)) || sorted[0];
+        return { ...group, current, history: sorted.filter((entry) => entry.id !== current.id) };
+    });
+};
 function DateRangeControl({ period, setPeriod, range, setRange }) {
     return <div className="fin-period-control"><label>Show records<select value={period} onChange={(e) => { const next = e.target.value; setPeriod(next); if (next !== "CUSTOM") setRange(rangeFor(next)); }}><option value="YESTERDAY">Yesterday</option><option value="LAST_WEEK">Last week</option><option value="LAST_30_DAYS">Last 30 days</option><option value="LAST_MONTH">Last month</option><option value="CUSTOM">Custom</option></select></label><label>From<input type="date" value={range.from} onChange={(e) => { setPeriod("CUSTOM"); setRange({ ...range, from: e.target.value }); }} /></label><label>To<input type="date" value={range.to} onChange={(e) => { setPeriod("CUSTOM"); setRange({ ...range, to: e.target.value }); }} /></label></div>;
 }
@@ -244,7 +256,12 @@ export default function FinanceIndex() {
                             <button disabled={busy}>Save service hours</button>
                         </form>
                         <DateRangeControl period={servicePeriod} setPeriod={setServicePeriod} range={serviceRange} setRange={setServiceRange}/>
-                        {services.map(x=><article key={x.id}><strong>{x.name}</strong><p>{hours(x.weeklyMinutes)} per week from {x.effectiveFrom}{x.effectiveTo?` to ${x.effectiveTo}`:" onwards"}</p><p>{x.fundingSource||"Funding source not recorded"}{x.reference?` · ${x.reference}`:""}</p></article>)}
+                        <h3>Current client service hours</h3>
+                        {groupedServiceHours(services).map(({ name, current, history }) => <article key={current.id}>
+                            <strong>{name}</strong>
+                            {serviceSummary(current)}
+                            {history.length > 0 && <details><summary>View {history.length} earlier {history.length === 1 ? "record" : "records"}</summary>{history.map((entry) => <div key={entry.id} className="fin-history-record">{serviceSummary(entry)}</div>)}</details>}
+                        </article>)}
                     </div>
                 ) : ["INVOICE", "PAYRUN", "RATES"].includes(section) ? (
                     <FinanceWorkspace
