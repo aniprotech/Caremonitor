@@ -44,12 +44,23 @@ export async function initializeOperations(db) {
     action text NOT NULL,snapshot jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
   await db.query(`CREATE TABLE IF NOT EXISTS node_travel_rates (
     id uuid PRIMARY KEY,agency_id uuid NOT NULL,user_id uuid NOT NULL REFERENCES users(id),effective_from date NOT NULL,
-    mileage_pence integer NOT NULL CHECK(mileage_pence BETWEEN 0 AND 100000),hourly_pence integer NOT NULL CHECK(hourly_pence BETWEEN 0 AND 1000000),
-    UNIQUE(user_id,effective_from))`);
+    effective_to date,mileage_pence integer NOT NULL CHECK(mileage_pence BETWEEN 0 AND 100000),hourly_pence integer NOT NULL CHECK(hourly_pence BETWEEN 0 AND 1000000),
+    CHECK(effective_to IS NULL OR effective_to>=effective_from),UNIQUE(user_id,effective_from))`);
+  await db.query(`ALTER TABLE node_travel_rates ADD COLUMN IF NOT EXISTS effective_to date`);
   await db.query(`CREATE TABLE IF NOT EXISTS node_client_service_hours (
     id uuid PRIMARY KEY,agency_id uuid NOT NULL,user_id uuid NOT NULL REFERENCES users(id),effective_from date NOT NULL,
-    weekly_minutes integer NOT NULL CHECK(weekly_minutes BETWEEN 0 AND 10080),funding_source text NOT NULL DEFAULT '',reference text NOT NULL DEFAULT '',
-    UNIQUE(user_id,effective_from))`);
+    effective_to date,weekly_minutes integer NOT NULL CHECK(weekly_minutes BETWEEN 0 AND 10080),funding_source text NOT NULL DEFAULT '',reference text NOT NULL DEFAULT '',
+    CHECK(effective_to IS NULL OR effective_to>=effective_from),UNIQUE(user_id,effective_from))`);
+  await db.query(`ALTER TABLE node_client_service_hours ADD COLUMN IF NOT EXISTS effective_to date`);
+  await db.query(`CREATE TABLE IF NOT EXISTS node_client_funding_service_rates (
+    id uuid PRIMARY KEY,agency_id uuid NOT NULL,user_id uuid NOT NULL REFERENCES users(id),
+    service_type text NOT NULL CHECK(service_type IN ('THIRTY_MINUTES','HOURLY','THREE_HOURS','SIX_HOURS','HALF_DAY','FULL_DAY','DAY','WEEKLY','WAKING_NIGHT','SLEEPING_NIGHT')),
+    hourly_pence integer NOT NULL CHECK(hourly_pence BETWEEN 0 AND 1000000),
+    effective_from date NOT NULL,effective_to date,
+    CHECK(effective_to IS NULL OR effective_to>=effective_from),
+    UNIQUE(user_id,service_type,effective_from)
+  )`);
+  await db.query("CREATE INDEX IF NOT EXISTS node_client_funding_service_rates_lookup ON node_client_funding_service_rates(agency_id,user_id,effective_from,effective_to)");
   await db.query(`CREATE TABLE IF NOT EXISTS node_visit_travel (
     visit_id uuid PRIMARY KEY REFERENCES node_roster_visits(id),agency_id uuid NOT NULL,
     staff_id uuid NOT NULL REFERENCES users(id),miles numeric NOT NULL CHECK(miles BETWEEN 0 AND 10000),

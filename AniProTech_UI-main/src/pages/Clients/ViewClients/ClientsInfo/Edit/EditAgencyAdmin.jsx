@@ -93,6 +93,22 @@ const EditAgencyAdmin = () => {
     };
 
     const currentStatus = getCurrentStatus();
+    const fundedServices = [
+        ["THIRTY_MINUTES", "30 minutes"], ["HOURLY", "Hourly"], ["THREE_HOURS", "3 hours"], ["SIX_HOURS", "6 hours"],
+        ["HALF_DAY", "Half-day (4 hours)"], ["FULL_DAY", "Full-day (8 hours)"], ["DAY", "Day (8 hours)"], ["WEEKLY", "Weekly"],
+        ["WAKING_NIGHT", "Waking night (8 hours)"], ["SLEEPING_NIGHT", "Sleeping night (8 hours)"],
+    ];
+    const selectedServiceRates = Array.isArray(agencyAdmin.fundingServiceRates) ? agencyAdmin.fundingServiceRates : [];
+    const updateFundingService = (serviceType, checked) => {
+        const next = checked
+            ? [...selectedServiceRates, { serviceType, hourlyRate: "" }]
+            : selectedServiceRates.filter((item) => item.serviceType !== serviceType);
+        setFieldValue("agencyAdmin.fundingServiceRates", next);
+    };
+    const updateHourlyRate = (serviceType, hourlyRate) => setFieldValue(
+        "agencyAdmin.fundingServiceRates",
+        selectedServiceRates.map((item) => item.serviceType === serviceType ? { ...item, hourlyRate } : item),
+    );
 
     return (
         <div className="space-y-8 pb-20">
@@ -113,6 +129,24 @@ const EditAgencyAdmin = () => {
                     value={agencyAdmin?.uniqueClientIdentifier || ""}
                     valueChange={(e) => setFieldValue("agencyAdmin.uniqueClientIdentifier", e.target.value)}
                 />
+
+                <div className="rounded-lg border border-cyan-100 bg-cyan-50 p-4">
+                    <h3 className="font-medium text-gray-900">Funded services and billing rates</h3>
+                    <p className="mt-1 text-sm text-gray-600">Choose every funded service this client receives and enter its hourly rate. The applicable rate is used automatically in invoice previews for matching completed visit durations.</p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <DateField label="Effective from" name="agencyAdmin.fundingEffectiveFrom" value={agencyAdmin.fundingEffectiveFrom || ""} onChange={(e) => setFieldValue("agencyAdmin.fundingEffectiveFrom", e.target.value)} />
+                        <DateField label="Effective to (optional)" name="agencyAdmin.fundingEffectiveTo" value={agencyAdmin.fundingEffectiveTo || ""} onChange={(e) => setFieldValue("agencyAdmin.fundingEffectiveTo", e.target.value)} />
+                    </div>
+                    <div className="mt-4 space-y-3">
+                        {fundedServices.map(([serviceType, label]) => {
+                            const rate = selectedServiceRates.find((item) => item.serviceType === serviceType);
+                            return <div key={serviceType} className="flex flex-wrap items-center gap-3 rounded border border-gray-200 bg-white p-3">
+                                <label className="flex flex-1 items-center gap-2 text-sm font-medium text-customNavy"><input type="checkbox" checked={Boolean(rate)} onChange={(e) => updateFundingService(serviceType, e.target.checked)} />{label}</label>
+                                {rate && <label className="flex items-center gap-2 text-sm text-gray-700">Rate per hour (£)<input type="number" min="0" step="0.01" required value={rate.hourlyRate} onChange={(e) => updateHourlyRate(serviceType, e.target.value)} className="w-28 rounded border border-gray-300 px-2 py-1" /></label>}
+                            </div>;
+                        })}
+                    </div>
+                </div>
             </div>
 
             <div

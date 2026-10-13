@@ -33,7 +33,9 @@ export function registerFinance({ db, repo, auth }, route) {
       review.minutes AS minutes,v.revision AS "visitRevision",review.revision AS "reviewRevision",
       (SELECT hourly_pence FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "hourlyPence",
       (SELECT rate_pence FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "ratePence",
-      (SELECT rate_unit FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "rateUnit"
+      (SELECT rate_unit FROM node_rates r WHERE r.user_id=$2 AND r.agency_id=$1 AND r.kind=$5 AND r.effective_from<=v.visit_date ORDER BY effective_from DESC LIMIT 1) AS "rateUnit",
+      ${kind === "INVOICE" ? `(SELECT fs.hourly_pence FROM node_client_funding_service_rates fs WHERE fs.agency_id=$1 AND fs.user_id=$2 AND fs.effective_from<=v.visit_date AND (fs.effective_to IS NULL OR fs.effective_to>=v.visit_date) AND ((fs.service_type='THIRTY_MINUTES' AND review.minutes=30) OR (fs.service_type='HOURLY' AND review.minutes=60) OR (fs.service_type='THREE_HOURS' AND review.minutes=180) OR (fs.service_type='SIX_HOURS' AND review.minutes=360) OR (fs.service_type='HALF_DAY' AND review.minutes=240) OR (fs.service_type IN ('FULL_DAY','DAY') AND review.minutes=480) OR (fs.service_type IN ('WAKING_NIGHT','SLEEPING_NIGHT') AND review.minutes=480)) ORDER BY fs.effective_from DESC,fs.service_type LIMIT 1) AS "fundedHourlyPence",
+      (SELECT fs.service_type FROM node_client_funding_service_rates fs WHERE fs.agency_id=$1 AND fs.user_id=$2 AND fs.effective_from<=v.visit_date AND (fs.effective_to IS NULL OR fs.effective_to>=v.visit_date) AND ((fs.service_type='THIRTY_MINUTES' AND review.minutes=30) OR (fs.service_type='HOURLY' AND review.minutes=60) OR (fs.service_type='THREE_HOURS' AND review.minutes=180) OR (fs.service_type='SIX_HOURS' AND review.minutes=360) OR (fs.service_type='HALF_DAY' AND review.minutes=240) OR (fs.service_type IN ('FULL_DAY','DAY') AND review.minutes=480) OR (fs.service_type IN ('WAKING_NIGHT','SLEEPING_NIGHT') AND review.minutes=480)) ORDER BY fs.effective_from DESC,fs.service_type LIMIT 1) AS "fundedServiceType"` : `NULL::integer AS "fundedHourlyPence",NULL::text AS "fundedServiceType"`}
       FROM node_roster_visits v JOIN node_finance_reviews review ON review.visit_id=v.id AND review.kind=$5 AND review.state='CONFIRMED' AND review.visit_revision=v.revision WHERE v.agency_id=$1 AND ${kind === "INVOICE" ? "v.client_id" : "v.staff_id"}=$2 AND v.status='COMPLETED'
       AND v.visit_date BETWEEN $3 AND $4 AND NOT EXISTS(SELECT 1 FROM node_finance_lines l WHERE l.visit_id=v.id AND l.kind=$6 AND l.released=false)
       ORDER BY v.visit_date,v.start_time,v.id`,
@@ -42,9 +44,10 @@ export function registerFinance({ db, repo, auth }, route) {
     const lines = rows.map((r) => ({
       ...r,
       component:"CARE",
-      rateUnit:r.rateUnit || "HOURLY",
+      hourlyPence:r.fundedHourlyPence ?? r.hourlyPence,
+      rateUnit:r.fundedServiceType || r.rateUnit || "HOURLY",
       amountPence:
-        r.ratePence === null ? null : fixedRate(r.rateUnit || "HOURLY") ? Number(r.ratePence) : roundCharge(r.minutes, r.hourlyPence),
+        r.fundedHourlyPence != null ? roundCharge(r.minutes, r.fundedHourlyPence) : r.ratePence === null ? null : fixedRate(r.rateUnit || "HOURLY") ? Number(r.ratePence) : roundCharge(r.minutes, r.hourlyPence),
     }));
     // Daily, weekly and yearly pay rates are paid once for the matching period, while every
     // underlying visit remains represented so it cannot be included in a later pay run.

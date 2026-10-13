@@ -38,6 +38,8 @@ const EditClientsInfo = () => {
     const [searchParams] = useSearchParams();
     const tabPanelRef = useRef(null);
     const [data, setData] = useState({});
+    const [fundingServiceRates, setFundingServiceRates] = useState([]);
+    const [fundingRateDates, setFundingRateDates] = useState({ effectiveFrom: "", effectiveTo: "" });
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const { id } = useParams();
@@ -49,6 +51,25 @@ const EditClientsInfo = () => {
 
     useEffect(() => {
         fetchData(() => _get(APIConfig?.CLIENTS?.CLIENT_INFO_GET_BY_ID(id)), setData, setLoading, null);
+    }, [id]);
+
+    useEffect(() => {
+        let active = true;
+        _get(`/api/finance/client-service-rates/${id}`)
+            .then((response) => {
+                if (!active) return;
+                const rows = response?.data?.results?.data || [];
+                const latestDate = rows.map((row) => row.effectiveFrom).sort().at(-1);
+                const latest = rows.find((row) => row.effectiveFrom === latestDate);
+                setFundingRateDates({ effectiveFrom: latest?.effectiveFrom || "", effectiveTo: latest?.effectiveTo || "" });
+                setFundingServiceRates(
+                    rows
+                        .filter((row) => row.effectiveFrom === latestDate)
+                        .map((row) => ({ serviceType: row.serviceType, hourlyRate: (Number(row.hourlyPence) / 100).toFixed(2) })),
+                );
+            })
+            .catch(() => { if (active) setFundingServiceRates([]); });
+        return () => { active = false; };
     }, [id]);
 
     const tabKeyMap = {
@@ -104,6 +125,9 @@ const EditClientsInfo = () => {
         },
         agencyAdmin: {
             ...agencyAdminData(data),
+            fundingServiceRates,
+            fundingEffectiveFrom: fundingRateDates.effectiveFrom || data?.serviceStartDate || new Date().toISOString().slice(0, 10),
+            fundingEffectiveTo: fundingRateDates.effectiveTo,
         },
         clientInactivity: data?.clientInactivity|| [],
     };
@@ -179,6 +203,24 @@ const EditClientsInfo = () => {
         const response = await fetchData((data) => _post(APIConfig?.CLIENTS.CLIENT_INFO_UPDATE(id), data), null, setLoading, null, payload, false);
 
         if (response?.data?.error === false) {
+            const serviceRates = values?.agencyAdmin?.fundingServiceRates || [];
+            if (serviceRates.length) {
+                try {
+                    await _post("/api/finance/client-service-rates", {
+                        userId: id,
+                        effectiveFrom: values.agencyAdmin.fundingEffectiveFrom,
+                        effectiveTo: values.agencyAdmin.fundingEffectiveTo || null,
+                        rates: serviceRates.map((item) => ({
+                            serviceType: item.serviceType,
+                            hourlyPence: Math.round(Number(item.hourlyRate) * 100),
+                        })),
+                    });
+                } catch (error) {
+                    showError(error?.response?.data?.message || "Client details were saved, but the funded service rates could not be saved.");
+                    setSubmitting(false);
+                    return;
+                }
+            }
             clearFormDraft(draftKey);
             showSuccess(response?.data?.message || "Client information updated successfully");
             navigate(-1);

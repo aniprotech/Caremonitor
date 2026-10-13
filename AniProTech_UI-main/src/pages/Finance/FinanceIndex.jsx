@@ -6,6 +6,18 @@ import FinanceWorkspace from "./FinanceWorkspace";
 import "./finance.css";
 const read = async (path, params) => (await _get(path, { params })).data.results.data;
 const hours = (minutes = 0) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+const daysBefore = (date, days) => { const value = new Date(`${date}T12:00:00Z`); value.setUTCDate(value.getUTCDate() - days); return value.toISOString().slice(0, 10); };
+const rangeFor = (period) => {
+    const today = londonToday();
+    if (period === "YESTERDAY") return { from: daysBefore(today, 1), to: daysBefore(today, 1) };
+    if (period === "LAST_WEEK") return { from: daysBefore(today, 13), to: daysBefore(today, 7) };
+    if (period === "LAST_30_DAYS") return { from: daysBefore(today, 29), to: today };
+    if (period === "LAST_MONTH") { const end = new Date(`${today}T12:00:00Z`); end.setUTCDate(0); return { from: `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, "0")}-01`, to: end.toISOString().slice(0, 10) }; }
+    return { from: today, to: today };
+};
+function DateRangeControl({ period, setPeriod, range, setRange }) {
+    return <div className="fin-period-control"><label>Show records<select value={period} onChange={(e) => { const next = e.target.value; setPeriod(next); if (next !== "CUSTOM") setRange(rangeFor(next)); }}><option value="YESTERDAY">Yesterday</option><option value="LAST_WEEK">Last week</option><option value="LAST_30_DAYS">Last 30 days</option><option value="LAST_MONTH">Last month</option><option value="CUSTOM">Custom</option></select></label><label>From<input type="date" value={range.from} onChange={(e) => { setPeriod("CUSTOM"); setRange({ ...range, from: e.target.value }); }} /></label><label>To<input type="date" value={range.to} onChange={(e) => { setPeriod("CUSTOM"); setRange({ ...range, to: e.target.value }); }} /></label></div>;
+}
 function Overview({ overview }) {
     if (!overview) return <p>Loading finance overview…</p>;
     return (
@@ -46,8 +58,12 @@ export default function FinanceIndex() {
         [travel, setTravel] = useState([]),
         [overview, setOverview] = useState(null),
         [services, setServices] = useState([]),
-        [serviceRate, setServiceRate] = useState({ userId: "", effectiveFrom: londonToday(), weeklyHours: "", fundingSource: "", reference: "" }),
-        [rate, setRate] = useState({ userId: "", effectiveFrom: londonToday(), mileage: "", hourly: "" });
+        [serviceRate, setServiceRate] = useState({ userId: "", effectiveFrom: londonToday(), effectiveTo: "", weeklyHours: "", fundingSource: "", reference: "" }),
+        [rate, setRate] = useState({ userId: "", effectiveFrom: londonToday(), effectiveTo: "", mileage: "", hourly: "" }),
+        [servicePeriod, setServicePeriod] = useState("LAST_30_DAYS"),
+        [travelPeriod, setTravelPeriod] = useState("LAST_30_DAYS"),
+        [serviceRange, setServiceRange] = useState(() => rangeFor("LAST_30_DAYS")),
+        [travelRange, setTravelRange] = useState(() => rangeFor("LAST_30_DAYS"));
     useEffect(() => {
         let active = true;
         setBusy(true);
@@ -60,11 +76,11 @@ export default function FinanceIndex() {
                 : section === "HISTORY"
                   ? read("/api/finance/history")
                   : section === "TRAVEL"
-                    ? read("/api/finance/travel-rates")
+                    ? read("/api/finance/travel-rates", travelRange)
                     : section === "OVERVIEW"
                       ? read("/api/finance/overview", { from, to })
                       : section === "SERVICES"
-                        ? read("/api/finance/service-hours")
+                        ? read("/api/finance/service-hours", serviceRange)
                     : Promise.resolve(null),
         ])
             .then(([o, r]) => {
@@ -85,7 +101,7 @@ export default function FinanceIndex() {
         return () => {
             active = false;
         };
-    }, [from, to, section, reload]);
+    }, [from, to, section, reload, serviceRange, travelRange]);
     const decision = (v, k) => v.reviews.find((r) => r.kind === k);
     const label = (v, k) => {
         if (v.locked.includes(k === "PAY" ? "PAYRUN" : "INVOICE")) return "In document";
@@ -198,12 +214,14 @@ export default function FinanceIndex() {
                         <form onSubmit={async e=>{e.preventDefault();setBusy(true);setError("");try{await _post("/api/finance/service-hours",{...serviceRate,weeklyMinutes:Math.round(Number(serviceRate.weeklyHours)*60)});setSaved("Client service hours saved.");setReload(n=>n+1)}catch(e){setError(e.response?.data?.message||"Unable to save service hours")}finally{setBusy(false)}}}>
                             <label>Client<select required value={serviceRate.userId} onChange={e=>setServiceRate({...serviceRate,userId:e.target.value})}><option value="">Select client</option>{people.filter(p=>p.isClient).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                             <label>Effective from<input required type="date" value={serviceRate.effectiveFrom} onChange={e=>setServiceRate({...serviceRate,effectiveFrom:e.target.value})}/></label>
+                            <label>Effective to (optional)<input type="date" min={serviceRate.effectiveFrom} value={serviceRate.effectiveTo} onChange={e=>setServiceRate({...serviceRate,effectiveTo:e.target.value})}/></label>
                             <label>Hours per week<input required type="number" min="0" max="168" step="0.25" value={serviceRate.weeklyHours} onChange={e=>setServiceRate({...serviceRate,weeklyHours:e.target.value})}/></label>
                             <label>Funding source<input maxLength={100} placeholder="Council, NHS, private…" value={serviceRate.fundingSource} onChange={e=>setServiceRate({...serviceRate,fundingSource:e.target.value})}/></label>
                             <label>Agreement reference<input maxLength={100} value={serviceRate.reference} onChange={e=>setServiceRate({...serviceRate,reference:e.target.value})}/></label>
                             <button disabled={busy}>Save service hours</button>
                         </form>
-                        {services.map(x=><article key={x.id}><strong>{x.name}</strong><p>{hours(x.weeklyMinutes)} per week from {x.effectiveFrom}</p><p>{x.fundingSource||"Funding source not recorded"}{x.reference?` · ${x.reference}`:""}</p></article>)}
+                        <DateRangeControl period={servicePeriod} setPeriod={setServicePeriod} range={serviceRange} setRange={setServiceRange}/>
+                        {services.map(x=><article key={x.id}><strong>{x.name}</strong><p>{hours(x.weeklyMinutes)} per week from {x.effectiveFrom}{x.effectiveTo?` to ${x.effectiveTo}`:" onwards"}</p><p>{x.fundingSource||"Funding source not recorded"}{x.reference?` · ${x.reference}`:""}</p></article>)}
                     </div>
                 ) : ["INVOICE", "PAYRUN", "RATES"].includes(section) ? (
                     <FinanceWorkspace
@@ -243,6 +261,7 @@ export default function FinanceIndex() {
                                     await _post("/api/finance/travel-rates", {
                                         userId: rate.userId,
                                         effectiveFrom: rate.effectiveFrom,
+                                        effectiveTo: rate.effectiveTo || null,
                                         mileagePence: Math.round(Number(rate.mileage) * 100),
                                         hourlyPence: Math.round(Number(rate.hourly) * 100),
                                     });
@@ -284,6 +303,10 @@ export default function FinanceIndex() {
                                     onChange={(e) => setRate({ ...rate, effectiveFrom: e.target.value })}
                                 />
                             </label>
+                            <label>
+                                Effective to (optional)
+                                <input type="date" min={rate.effectiveFrom} value={rate.effectiveTo} onChange={(e) => setRate({ ...rate, effectiveTo: e.target.value })} />
+                            </label>
                             {[
                                 ["mileage", "GBP per mile"],
                                 ["hourly", "GBP per travel hour"],
@@ -302,9 +325,10 @@ export default function FinanceIndex() {
                             ))}
                             <button disabled={busy}>Save rate</button>
                         </form>
+                        <DateRangeControl period={travelPeriod} setPeriod={setTravelPeriod} range={travelRange} setRange={setTravelRange}/>
                         {travel.map((r) => (
                             <article key={r.id}>
-                                {r.name} · {r.effective_from.slice(0, 10)} · {money(r.mileage_pence)}/mile · {money(r.hourly_pence)}/hour
+                                {r.name} · {r.effective_from.slice(0, 10)}{r.effective_to ? ` to ${r.effective_to.slice(0, 10)}` : " onwards"} · {money(r.mileage_pence)}/mile · {money(r.hourly_pence)}/hour
                             </article>
                         ))}
                     </div>
