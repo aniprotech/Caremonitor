@@ -16,6 +16,11 @@ const rangeFor = (period) => {
     return { from: today, to: today };
 };
 const fundingLabels = { LOCAL_AUTHORITY: "Local Authority", PRIVATE: "Private", NHS: "NHS", OTHER: "Other" };
+const fundingSourceFromProfile = (profile) => {
+    const value = profile?.fundingOption ?? profile?.agencyAdmin?.fundingOption ?? profile?.data?.fundingOption;
+    const options = Array.isArray(value) ? value : value ? [value] : [];
+    return options.map((option) => fundingLabels[option] || option).filter(Boolean).join(", ");
+};
 const serviceSummary = (entry) => <><p>{hours(entry.weeklyMinutes)} per week from {entry.effectiveFrom}{entry.effectiveTo ? ` to ${entry.effectiveTo}` : " onwards"}</p><p>Funding source: {entry.fundingSource || "Not specified"}{entry.reference ? ` · ${entry.reference}` : ""}</p></>;
 const groupedServiceHours = (entries) => {
     const today = londonToday();
@@ -198,8 +203,9 @@ export default function FinanceIndex() {
         if (!userId) return;
         try {
             const profile = await read(`/api/client-information/${userId}`);
-            const funding = (profile.fundingOption || []).map((option) => fundingLabels[option] || option).join(", ");
+            const funding = fundingSourceFromProfile(profile);
             setServiceRate((current) => current.userId !== userId ? current : ({ ...current, fundingSource: funding || current.fundingSource }));
+            setSaved(funding ? `Funding source loaded from the client profile: ${funding}.` : "No funding source is recorded on this client profile yet.");
         } catch (e) {
             setError(e.response?.data?.message || "Unable to load the client’s funding arrangement");
         }
