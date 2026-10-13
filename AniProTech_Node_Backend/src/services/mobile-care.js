@@ -292,12 +292,25 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
         AND owner.role='SUPERADMIN' AND owner.is_active=true AND owner.deleted_at IS NULL
         ORDER BY owner.created_at,owner.id LIMIT 1)))`, [req.user.agencyId])).rows;
     const recipients=admins.map((row)=>row.email).filter((email)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
-    if (!recipients.length) return;
     const caregiver = (await db.query("SELECT first_name||' '||last_name AS name FROM users WHERE id=$1 AND agency_id=$2", [req.user.id,req.user.agencyId])).rows[0]?.name || "Caregiver";
     const when = new Date().toLocaleString("en-GB", { timeZone:"Europe/London" });
     const text = [`${event} for ${visit.clientName}.`, `Caregiver: ${caregiver}`, `Scheduled visit: ${visit.date}, ${visit.startTime}–${visit.endTime} (UK time)`, `Event time: ${when} (UK time)`, distanceMetres == null ? null : `Approximate distance from the client's configured address: ${distanceMetres} metres.`, details || null].filter(Boolean).join("\n");
-    req.afterCommit?.push(() => mail.send({ to:recipients, subject:`${event}: ${visit.clientName}`, text }));
-    req.afterCommit?.push(() => push.sendToUsers(req.user.agencyId,admins.filter((row)=>recipients.includes(row.email)).map((row)=>row.id),"A care event needs your attention. Open Caremonitor to review it."));
+    if(recipients.length){
+      req.afterCommit?.push(() => mail.send({ to:recipients, subject:`${event}: ${visit.clientName}`, text }));
+      req.afterCommit?.push(() => push.sendToUsers(req.user.agencyId,admins.filter((row)=>recipients.includes(row.email)).map((row)=>row.id),"A care event needs your attention. Open Caremonitor to review it."));
+    }
+    // Client notifications are optional and intentionally contain no clinical details,
+    // location precision, or staff information. They are limited to arrival events.
+    const settingsValue=(await db.query("SELECT carer_app_settings FROM node_agencies WHERE id=$1",[req.user.agencyId])).rows[0]?.carer_app_settings || {};
+    const settings=typeof settingsValue === "string" ? JSON.parse(settingsValue || "{}") : settingsValue;
+    const clientEmail=String(visit.clientEmail || "").trim().toLowerCase();
+    const arrivalEvent=event === "Caregiver within 100 metres" || event === "Caregiver checked in";
+    if(arrivalEvent && settings.notifyClientOnArrival !== false && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)){
+      const clientText=event === "Caregiver within 100 metres"
+        ? "Your scheduled Caremonitor visit is about to begin."
+        : "Your scheduled Caremonitor visit has begun.";
+      req.afterCommit?.push(()=>mail.send({to:clientEmail,subject:"Caremonitor visit update",text:`${clientText}\n\nSign in to your secure care record if you need to contact the care team.`}));
+    }
   }
   async function visit(req, locking = false) {
     const row = (await db.query(`SELECT v.*,v.visit_date::text AS date,to_char(v.start_time,'HH24:MI') AS "startTime",

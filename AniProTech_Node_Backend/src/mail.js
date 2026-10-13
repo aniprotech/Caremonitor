@@ -37,22 +37,32 @@ const gmailError = (message, status, providerStage) => {
   return error;
 };
 
-function gmailMessage({ from, to, subject, text, html, messageId }) {
+function gmailMessage({ from, to, subject, text, html, messageId, attachments = [] }) {
   const recipients = Array.isArray(to) ? to.join(", ") : to;
-  const boundary = `caremonitor-${randomUUID()}`;
+  const mixedBoundary = `caremonitor-mixed-${randomUUID()}`;
+  const alternativeBoundary = `caremonitor-alternative-${randomUUID()}`;
   const headers = [
     `From: ${from}`,
     `To: ${recipients}`,
     `Subject: ${encodeHeader(subject)}`,
     "MIME-Version: 1.0",
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
   ];
   if (messageId) headers.push(`Message-ID: ${messageId}`);
   const content = [
     headers.join("\r\n"), "",
-    `--${boundary}`, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", Buffer.from(text).toString("base64"),
-    `--${boundary}`, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", Buffer.from(html).toString("base64"),
-    `--${boundary}--`, "",
+    `--${mixedBoundary}`, `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`, "",
+    `--${alternativeBoundary}`, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", Buffer.from(text).toString("base64"),
+    `--${alternativeBoundary}`, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", Buffer.from(html).toString("base64"),
+    `--${alternativeBoundary}--`,
+    ...attachments.flatMap((attachment) => [
+      `--${mixedBoundary}`,
+      `Content-Type: ${attachment.contentType || "application/octet-stream"}; name="${attachment.filename || "attachment"}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${attachment.filename || "attachment"}"`, "",
+      Buffer.from(attachment.content).toString("base64"),
+    ]),
+    `--${mixedBoundary}--`, "",
   ].join("\r\n");
   return Buffer.from(content).toString("base64url");
 }
@@ -149,6 +159,7 @@ export function createMail(config) {
             subject: branded.subject,
             text: branded.text,
             html: branded.html,
+            attachments: (branded.attachments || []).map((attachment) => ({ filename:attachment.filename, content:attachment.content, contentType:attachment.contentType })),
           });
         } catch {
           throw gmailError("SMTP delivery failed", 503, "smtp_send");
@@ -157,7 +168,7 @@ export function createMail(config) {
       await fs.mkdir(config.outboxDir, { recursive: true, mode: 0o700 });
       await fs.writeFile(
         path.join(config.outboxDir, `${Date.now()}-${randomUUID()}.json`),
-        JSON.stringify(branded, null, 2),
+        JSON.stringify({...branded,attachments:(branded.attachments || []).map((attachment)=>({...attachment,content:Buffer.from(attachment.content).toString("base64"),encoding:"base64"}))}, null, 2),
         { mode: 0o600 },
       );
     },

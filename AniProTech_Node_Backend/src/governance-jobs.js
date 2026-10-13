@@ -1,3 +1,4 @@
+import { scheduledReportPdf } from "./report-pdf.js";
 const cadenceDays={WEEKLY:7,MONTHLY:30,QUARTERLY:90};
 export async function runGovernanceReports({db,mail,frontendUrl}){
   const due=(await db.query(`SELECT id FROM node_report_schedules WHERE active=true AND next_run_at<=CURRENT_TIMESTAMP ORDER BY next_run_at LIMIT 20`)).rows;
@@ -17,7 +18,8 @@ export async function runGovernanceReports({db,mail,frontendUrl}){
     if(!result)continue;
     const {schedule,cases,visits,documents}=result,recipients=Array.isArray(schedule.recipient_emails)?schedule.recipient_emails:JSON.parse(schedule.recipient_emails||"[]");
     const text=`Caremonitor ${schedule.name}\n\nLast 30 days\nVisits: ${visits.total} (${visits.completed} completed)\nQuality cases: ${cases.total} (${cases.open} open, ${cases.overdue} overdue)\nFinance documents: ${documents.total}\n\nSign in for protected details and reconciliation. This email contains no client information.`;
-    const outcomes=await Promise.allSettled(recipients.map(to=>mail.send({to,subject:`Caremonitor scheduled report: ${schedule.name}`,text,actionUrl:`${frontendUrl}/admin/governance`,actionLabel:"Open governance workspace"})));
+    const attachment={filename:`caremonitor-${schedule.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || "scheduled-report"}.pdf`,content:scheduledReportPdf({name:schedule.name,cadence:schedule.cadence,generatedAt:new Date(),visits,cases,documents}),contentType:"application/pdf"};
+    const outcomes=await Promise.allSettled(recipients.map(to=>mail.send({to,subject:`Caremonitor scheduled report: ${schedule.name}`,text,actionUrl:`${frontendUrl}/admin/governance`,actionLabel:"Open governance workspace",attachments:[attachment]})));
     if(outcomes.some(x=>x.status==='rejected'))console.error("A scheduled governance report recipient failed");else sent++;
   }
   return {due:due.length,sent};
