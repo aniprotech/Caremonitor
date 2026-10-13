@@ -16,6 +16,15 @@ export const clearFormDraft = (key) => {
     try { sessionStorage.removeItem(key); } catch { /* storage can be unavailable */ }
 };
 
+export const saveFormDraft = (key, values) => {
+    try {
+        sessionStorage.setItem(key, JSON.stringify({ values, savedAt: new Date().toISOString() }));
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 export default function FormDraftAutosave({ storageKey, enabled = true, onStatusChange }) {
     const { values, dirty } = useFormikContext();
 
@@ -23,12 +32,7 @@ export default function FormDraftAutosave({ storageKey, enabled = true, onStatus
         if (!enabled || !dirty) return undefined;
         onStatusChange?.("Saving draft…");
         const timer = window.setTimeout(() => {
-            try {
-                sessionStorage.setItem(storageKey, JSON.stringify({ values, savedAt: new Date().toISOString() }));
-                onStatusChange?.("Draft saved automatically");
-            } catch {
-                onStatusChange?.("Draft could not be saved in this browser");
-            }
+            onStatusChange?.(saveFormDraft(storageKey, values) ? "Draft saved automatically" : "Draft could not be saved in this browser");
         }, 700);
         return () => window.clearTimeout(timer);
     }, [enabled, dirty, onStatusChange, storageKey, values]);

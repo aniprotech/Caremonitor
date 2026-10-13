@@ -24,7 +24,7 @@ import { fetchData } from "../../../../../utils/FetchData";
 import InnerLoader from "../../../../../components/Loader/InnerLoader";
 import { useGlobalStore } from "../../../../../stores/useGlobalStore";
 import { normaliseNhsNumber } from "../../../../../utils/nhsNumber";
-import FormDraftAutosave, { clearFormDraft, readFormDraft } from "../../../../../components/Common/FormDraftAutosave";
+import FormDraftAutosave, { clearFormDraft, readFormDraft, saveFormDraft } from "../../../../../components/Common/FormDraftAutosave";
 
 const clientInfoTabs = [
     { name: "Personal Identity", component: EditPersonalIdentity },
@@ -235,8 +235,11 @@ const EditClientsInfo = () => {
             enableReinitialize
         >
             {({ values, setFieldValue, errors, touched }) => (
-                <Form className="relative min-h-screen bg-white md:mx-5 lg:mx-20 xl:mx-40" data-autosave-pending={draftStatus === "Saving draft…" ? "true" : undefined}>
-                    <FormDraftAutosave storageKey={draftKey} enabled={Boolean(data)} onStatusChange={setDraftStatus} />
+                <Form className="relative min-h-screen bg-white md:mx-5 lg:mx-20 xl:mx-40">
+                    <FormDraftAutosave storageKey={draftKey} enabled={Boolean(data)} onStatusChange={(status) => {
+                        setDraftStatus(status);
+                        if (status === "Draft saved automatically") showSuccess(status);
+                    }} />
                     {/* Top Navigation */}
                     <div className="sticky top-14 z-30 border-b bg-white pt-7 md:px-3">
                         <div className="relative border-b border-gray-300">
@@ -303,7 +306,16 @@ const EditClientsInfo = () => {
 
                     {/* Save Button */}
                     <div className="fixed bottom-0 left-0 right-2 border-t border-gray-200 bg-white py-5 pr-10 shadow-lg">
-                        {draftStatus && <span className="float-right mt-2 mr-4 text-xs text-slate-600">{draftStatus}</span>}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (saveFormDraft(draftKey, values)) showSuccess("Draft saved. You can safely return to it in this browser session.");
+                                else showError("Draft could not be saved in this browser.");
+                            }}
+                            className="float-right mr-3 rounded-md border border-customDropdownBorder px-6 py-2 text-sm font-semibold text-customDropdownBorder shadow-sm hover:bg-slate-50 focus:outline-none"
+                        >
+                            Save draft
+                        </button>
                         <button
                             type="submit"
                             disabled={loading}
