@@ -15,7 +15,8 @@ const rangeFor = (period) => {
     if (period === "LAST_MONTH") { const end = new Date(`${today}T12:00:00Z`); end.setUTCDate(0); return { from: `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, "0")}-01`, to: end.toISOString().slice(0, 10) }; }
     return { from: today, to: today };
 };
-const serviceSummary = (entry) => <><p>{hours(entry.weeklyMinutes)} per week from {entry.effectiveFrom}{entry.effectiveTo ? ` to ${entry.effectiveTo}` : " onwards"}</p><p>{entry.fundingSource || "Funding source not recorded"}{entry.reference ? ` · ${entry.reference}` : ""}</p></>;
+const fundingLabels = { LOCAL_AUTHORITY: "Local Authority", PRIVATE: "Private", NHS: "NHS", OTHER: "Other" };
+const serviceSummary = (entry) => <><p>{hours(entry.weeklyMinutes)} per week from {entry.effectiveFrom}{entry.effectiveTo ? ` to ${entry.effectiveTo}` : " onwards"}</p><p>Funding source: {entry.fundingSource || "Not specified"}{entry.reference ? ` · ${entry.reference}` : ""}</p></>;
 const groupedServiceHours = (entries) => {
     const today = londonToday();
     return Object.values(entries.reduce((groups, entry) => {
@@ -192,6 +193,17 @@ export default function FinanceIndex() {
             setError(e.response?.data?.message || "Unable to load the carer’s saved travel rate");
         }
     };
+    const selectServiceClient = async (userId) => {
+        setServiceRate((current) => ({ ...current, userId }));
+        if (!userId) return;
+        try {
+            const profile = await read(`/api/client-information/${userId}`);
+            const funding = (profile.fundingOption || []).map((option) => fundingLabels[option] || option).join(", ");
+            setServiceRate((current) => current.userId !== userId ? current : ({ ...current, fundingSource: funding || current.fundingSource }));
+        } catch (e) {
+            setError(e.response?.data?.message || "Unable to load the client’s funding arrangement");
+        }
+    };
     return (
         <div className="finance-shell">
             <aside>
@@ -247,11 +259,11 @@ export default function FinanceIndex() {
                     <div className="fin-content">
                         <p>Set each client&apos;s weekly commissioned or private service allowance. Effective dates preserve historical calculations.</p>
                         <form onSubmit={async e=>{e.preventDefault();setBusy(true);setError("");try{await _post("/api/finance/service-hours",{...serviceRate,weeklyMinutes:Math.round(Number(serviceRate.weeklyHours)*60)});setSaved("Client service hours saved.");setReload(n=>n+1)}catch(e){setError(e.response?.data?.message||"Unable to save service hours")}finally{setBusy(false)}}}>
-                            <label>Client<select required value={serviceRate.userId} onChange={e=>setServiceRate({...serviceRate,userId:e.target.value})}><option value="">Select client</option>{people.filter(p=>p.isClient).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                            <label>Client<select required value={serviceRate.userId} onChange={e=>selectServiceClient(e.target.value)}><option value="">Select client</option>{people.filter(p=>p.isClient).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                             <label>Effective from<input required type="date" value={serviceRate.effectiveFrom} onChange={e=>setServiceRate({...serviceRate,effectiveFrom:e.target.value})}/></label>
                             <label>Effective to (optional)<input type="date" min={serviceRate.effectiveFrom} value={serviceRate.effectiveTo} onChange={e=>setServiceRate({...serviceRate,effectiveTo:e.target.value})}/></label>
                             <label>Hours per week<input required type="number" min="0" max="168" step="0.25" value={serviceRate.weeklyHours} onChange={e=>setServiceRate({...serviceRate,weeklyHours:e.target.value})}/></label>
-                            <label>Funding source<input maxLength={100} placeholder="Council, NHS, private…" value={serviceRate.fundingSource} onChange={e=>setServiceRate({...serviceRate,fundingSource:e.target.value})}/></label>
+                            <label>Funding source<input required maxLength={100} placeholder="Council, NHS, private…" value={serviceRate.fundingSource} onChange={e=>setServiceRate({...serviceRate,fundingSource:e.target.value})}/></label>
                             <label>Agreement reference<input maxLength={100} value={serviceRate.reference} onChange={e=>setServiceRate({...serviceRate,reference:e.target.value})}/></label>
                             <button disabled={busy}>Save service hours</button>
                         </form>
