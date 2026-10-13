@@ -304,12 +304,9 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
     const settingsValue=(await db.query("SELECT carer_app_settings FROM node_agencies WHERE id=$1",[req.user.agencyId])).rows[0]?.carer_app_settings || {};
     const settings=typeof settingsValue === "string" ? JSON.parse(settingsValue || "{}") : settingsValue;
     const clientEmail=String(visit.clientEmail || "").trim().toLowerCase();
-    const arrivalEvent=event === "Caregiver within 100 metres" || event === "Caregiver checked in";
+    const arrivalEvent=event === "Caregiver within 100 metres";
     if(arrivalEvent && settings.notifyClientOnArrival !== false && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)){
-      const clientText=event === "Caregiver within 100 metres"
-        ? "Your scheduled Caremonitor visit is about to begin."
-        : "Your scheduled Caremonitor visit has begun.";
-      req.afterCommit?.push(()=>mail.send({to:clientEmail,subject:"Caremonitor visit update",text:`${clientText}\n\nSign in to your secure care record if you need to contact the care team.`}));
+      req.afterCommit?.push(()=>mail.send({to:clientEmail,subject:"Caremonitor visit update",text:"Your scheduled Caremonitor visit is about to begin.\n\nSign in to your secure care record if you need to contact the care team."}));
     }
   }
   async function visit(req, locking = false) {
