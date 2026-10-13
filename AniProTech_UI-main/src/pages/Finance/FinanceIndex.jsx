@@ -204,7 +204,10 @@ export default function FinanceIndex() {
         try {
             const profile = await read(`/api/client-information/${userId}`);
             const funding = fundingSourceFromProfile(profile);
-            setServiceRate((current) => current.userId !== userId ? current : ({ ...current, fundingSource: funding || current.fundingSource }));
+            // A client selection is authoritative.  Never leave the prior client's
+            // funding source in the form when the newly selected profile is empty
+            // or has been changed.
+            setServiceRate((current) => current.userId !== userId ? current : ({ ...current, fundingSource: funding }));
             setSaved(funding ? `Funding source loaded from the client profile: ${funding}.` : "No funding source is recorded on this client profile yet.");
         } catch (e) {
             setError(e.response?.data?.message || "Unable to load the client’s funding arrangement");
