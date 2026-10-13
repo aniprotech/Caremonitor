@@ -44,7 +44,6 @@ const EditClientsInfo = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const draftKey = `caremonitor:client-information:${id}`;
-    const [draftStatus, setDraftStatus] = useState("");
     const [draft] = useState(() => readFormDraft(draftKey));
     const { clientsPersonalDetailData } = useGlobalStore();
     const clientName = clientsPersonalDetailData ? `${clientsPersonalDetailData.firstName}` : "the client";
@@ -234,12 +233,10 @@ const EditClientsInfo = () => {
             onSubmit={handleSubmit}
             enableReinitialize
         >
-            {({ values, setFieldValue, errors, touched }) => (
+            {({ values, setFieldValue, errors, touched, dirty }) => (
                 <Form className="relative min-h-screen bg-white md:mx-5 lg:mx-20 xl:mx-40">
-                    <FormDraftAutosave storageKey={draftKey} enabled={Boolean(data)} onStatusChange={(status) => {
-                        setDraftStatus(status);
-                        if (status === "Draft saved automatically") showSuccess(status);
-                    }} />
+                    <FormDraftAutosave storageKey={draftKey} enabled={Boolean(data)} />
+                    {dirty && <p className="sticky top-14 z-40 mx-3 mt-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" role="status">Draft protection is on. Your changes are saved automatically in this browser session.</p>}
                     {/* Top Navigation */}
                     <div className="sticky top-14 z-30 border-b bg-white pt-7 md:px-3">
                         <div className="relative border-b border-gray-300">
