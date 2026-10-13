@@ -157,6 +157,29 @@ export default function FinanceIndex() {
         setSaved("");
         setError("");
     };
+    const selectTravelCarer = async (userId) => {
+        setRate((current) => ({ ...current, userId }));
+        if (!userId) return;
+        try {
+            const rates = await read("/api/finance/travel-rates");
+            const onDate = rate.effectiveFrom || londonToday();
+            const active = rates
+                .filter((entry) => entry.user_id === userId && entry.effective_from <= onDate && (!entry.effective_to || entry.effective_to >= onDate))
+                .sort((a, b) => b.effective_from.localeCompare(a.effective_from))[0];
+            if (active) {
+                setRate((current) => current.userId !== userId ? current : ({
+                    ...current,
+                    mileage: (Number(active.mileage_pence) / 100).toFixed(2),
+                    hourly: (Number(active.hourly_pence) / 100).toFixed(2),
+                }));
+                setSaved("Saved Operations travel rates loaded. Choose an effective date, then save only if you need a new finance history entry.");
+            } else {
+                setSaved("No saved travel reimbursement rate was found for this carer.");
+            }
+        } catch (e) {
+            setError(e.response?.data?.message || "Unable to load the carer’s saved travel rate");
+        }
+    };
     return (
         <div className="finance-shell">
             <aside>
@@ -279,7 +302,7 @@ export default function FinanceIndex() {
                                 <select
                                     required
                                     value={rate.userId}
-                                    onChange={(e) => setRate({ ...rate, userId: e.target.value })}
+                                    onChange={(e) => selectTravelCarer(e.target.value)}
                                 >
                                     <option value="">Select staff</option>
                                     {people
@@ -294,6 +317,7 @@ export default function FinanceIndex() {
                                         ))}
                                 </select>
                             </label>
+                            <p className="fin-help">Selecting a carer loads their current saved travel reimbursement values. Saving with a new effective date keeps the earlier rate as history.</p>
                             <label>
                                 Effective from
                                 <input
