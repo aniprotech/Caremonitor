@@ -21,7 +21,11 @@ const fundingSourceFromProfile = (profile) => {
     const options = Array.isArray(value) ? value : value ? [value] : [];
     return options.map((option) => fundingLabels[option] || option).filter(Boolean).join(", ");
 };
-const serviceSummary = (entry) => <><p>{hours(entry.weeklyMinutes)} per week from {entry.effectiveFrom}{entry.effectiveTo ? ` to ${entry.effectiveTo}` : " onwards"}</p><p>Funding source: {entry.fundingSource || "Not specified"}{entry.reference ? ` · ${entry.reference}` : ""}</p></>;
+const serviceSummary = (entry) => {
+    const profileFallback = !entry.fundingSource && entry.profileFundingSource;
+    const source = entry.fundingSource || entry.profileFundingSource || "Not specified";
+    return <><p>{hours(entry.weeklyMinutes)} per week from {entry.effectiveFrom}{entry.effectiveTo ? ` to ${entry.effectiveTo}` : " onwards"}</p><p>Funding source: {source}{profileFallback ? " (current client profile)" : ""}{entry.reference ? ` · ${entry.reference}` : ""}</p></>;
+};
 const groupedServiceHours = (entries) => {
     const today = londonToday();
     return Object.values(entries.reduce((groups, entry) => {
