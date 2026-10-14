@@ -124,6 +124,10 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
     [endTime,setEndTime]=useState("10:00"),
     [visitTitle,setVisitTitle]=useState("Care visit"),
     [visitNotes,setVisitNotes]=useState(""),
+    [requestedStartTime,setRequestedStartTime]=useState(""),
+    [requestedEndTime,setRequestedEndTime]=useState(""),
+    [timeChangeReason,setTimeChangeReason]=useState(""),
+    [showTimeChange,setShowTimeChange]=useState(false),
     [visitFrequency,setVisitFrequency]=useState<"DAILY"|"WEEKLY"|"CUSTOM">("WEEKLY"),
     [repeatEvery,setRepeatEvery]=useState("1"),
     [repeatUnit,setRepeatUnit]=useState<"DAYS"|"WEEKS">("WEEKS"),
@@ -385,6 +389,16 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
       ExpoSpeechRecognitionModule.start({lang:"en-GB",interimResults:false,continuous:false,contextualStrings:["medication","care plan","check in","check out","wellbeing","hydration"]});
     } catch(e) { setListening(null); Alert.alert("Voice dictation unavailable",(e as Error).message+" A development build is required; the phone keyboard's dictation remains available in Expo Go."); }
   }
+  async function requestTimeChange() {
+    if(!selected) return;
+    setBusy(true);
+    try {
+      await api(`/api/mobile/visits/${selected.id}/time-change-requests`,"POST",{startTime:requestedStartTime,endTime:requestedEndTime,reason:timeChangeReason.trim()});
+      setShowTimeChange(false);setTimeChangeReason("");
+      Alert.alert("Request sent","The office has been notified. Your assigned visit time stays unchanged until an administrator approves the request.");
+    } catch (e) { Alert.alert("Request could not be sent",(e as Error).message); }
+    finally { setBusy(false); }
+  }
   const visitStatus=detail?.visit?.status;
   const activeVisit=visitStatus==="IN_PROGRESS";
   const visitMinutes=detail?.visit?.actual_start?Math.max(0,Math.floor(((detail.visit.actual_end?new Date(detail.visit.actual_end).valueOf():clock)-new Date(detail.visit.actual_start).valueOf())/60000)):0;
@@ -483,10 +497,12 @@ export function Visits({user,requestedVisitId,onVisitOpened}:{user:User;requeste
             {selected.status.replaceAll("_", " ")}
           </Text>
           {user.role!=="CAREGIVER"&&["DRAFT","SCHEDULED"].includes(selected.status)&&<Button title="Edit assignment" variant="secondary" onPress={()=>editVisit(selected)}/>}
+          {user.role==="CAREGIVER"&&selected.status==="SCHEDULED"&&<Button title={showTimeChange?"Cancel time-change request":"Request a time change"} variant="secondary" onPress={()=>{setShowTimeChange(value=>!value);setRequestedStartTime(selected.startTime);setRequestedEndTime(selected.endTime);setTimeChangeReason("")}}/>}
           <Text style={styles.text}>{selected.notes || "No visit instructions."}</Text>
           {detail?.address && <Text style={styles.text}>Address: {[detail.address.addressLine1,detail.address.city,detail.address.postalCode||detail.address.postCode].filter(Boolean).join(", ")}</Text>}
           {detail?.visit?.clientPhone && <Text style={styles.text}>Phone: {detail.visit.clientPhone}</Text>}
           </Card>
+          {showTimeChange&&user.role==="CAREGIVER"&&selected.status==="SCHEDULED"&&<Card><Text style={styles.heading}>Request a visit-time change</Text><Text style={styles.muted}>The office must approve this before the roster changes. Enter a clear reason, such as a client-requested change.</Text><View style={styles.row}><View style={{flex:1}}><TimeInput label="Requested start" value={requestedStartTime} onChangeText={setRequestedStartTime}/></View><View style={{flex:1}}><TimeInput label="Requested end" value={requestedEndTime} onChangeText={setRequestedEndTime}/></View></View><Input label="Reason for change" value={timeChangeReason} onChangeText={setTimeChangeReason} multiline maxLength={1000}/><Button title={busy?"Sending…":"Send for approval"} disabled={busy||timeChangeReason.trim().length<5||!requestedStartTime||!requestedEndTime} onPress={()=>void requestTimeChange()}/></Card>}
           <Card><Text style={styles.heading}>Client information and safety</Text>
             {!!detail?.address?.accessDetails&&<Text style={styles.text}>Access instructions: {detail.address.accessDetails}</Text>}
             {!!detail?.clientInformation?.routinesAndPreferences&&<Text style={styles.text}>Routines and preferences: {detail.clientInformation.routinesAndPreferences}</Text>}
@@ -1211,6 +1227,10 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
               ? "/api/team/availability-requests"
           : name === "Travel claims"
               ? "/api/mobile/admin/travel-claims"
+          : name === "Time change requests"
+              ? "/api/mobile/admin/visit-time-change-requests"
+          : name === "Inter-client travel"
+              ? "/api/mobile/admin/travel-legs"
           : name === "Reporting"
           ? `/api/reports/summary?from=${from}&to=${to}`
           : name === "Log"
@@ -1260,6 +1280,16 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
   async function decideTravel(id:string,decision:"APPROVED"|"DECLINED"){
     setBusy(true);setError("");
     try{await api(`/api/mobile/admin/travel-claims/${id}/decision`,"POST",{decision});await open("Travel claims")}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  async function decideTimeChange(id:string,decision:"APPROVED"|"DECLINED"){
+    setBusy(true);setError("");
+    try{await api(`/api/mobile/admin/visit-time-change-requests/${id}/decision`,"POST",{decision,note:""});await open("Time change requests")}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  async function decideTravelLeg(entry:Row,decision:"APPROVED"|"DECLINED"){
+    setBusy(true);setError("");
+    try{await api(`/api/mobile/admin/travel-legs/${entry.id}/decision`,"POST",{decision,miles:Number(entry.suggestedMiles||0),minutes:Number(entry.suggestedMinutes||0),note:""});await open("Inter-client travel")}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}
   }
   async function createQualityCase(){
@@ -1393,6 +1423,8 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
             <Text style={styles.badge}>{entry.status}</Text>
             {entry.status==="PENDING"&&<View style={styles.row}><Button disabled={busy} title="Approve" onPress={()=>void decideTravel(entry.id,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTravel(entry.id,"DECLINED")}/></View>}
           </Card>)}
+          {section === "Time change requests" && Array.isArray(data) && <><Text style={styles.muted}>Approve a caregiver request only after reviewing client needs, clashes and the next assigned visit. Approved changes update the roster and retain an audit trail.</Text>{data.map((entry:Row)=><Card key={entry.id}><Text style={styles.heading}>{entry.caregiverName} · {entry.clientName}</Text><Text style={styles.text}>{entry.date} · {entry.currentStart}–{entry.currentEnd} → {entry.requestedStart}–{entry.requestedEnd}</Text><Text style={styles.muted}>Reason: {entry.reason}</Text><Text style={styles.badge}>{entry.status}</Text>{entry.status==="PENDING"&&<View style={styles.row}><Button disabled={busy} title="Approve" onPress={()=>void decideTimeChange(entry.id,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTimeChange(entry.id,"DECLINED")}/></View>}</Card>)}{!data.length&&<Empty text="No caregiver time-change requests."/>}</>}
+          {section === "Inter-client travel" && Array.isArray(data) && <><Text style={styles.muted}>Only travel between consecutive client visits is shown. Home/base travel is never captured or paid. Review the estimate and record the approved miles and minutes before payroll.</Text>{data.map((entry:Row)=><Card key={entry.id}><Text style={styles.heading}>{entry.caregiverName} · {entry.fromClientName} → {entry.toClientName}</Text><Text style={styles.text}>{entry.date} · estimate {Number(entry.suggestedMiles||0).toFixed(2)} miles · {entry.suggestedMinutes||0} minutes</Text><Text style={styles.badge}>{entry.status}</Text>{entry.status==="PENDING"&&<View style={styles.row}><Button disabled={busy} title="Approve estimate" onPress={()=>void decideTravelLeg(entry,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTravelLeg(entry,"DECLINED")}/></View>}</Card>)}{!data.length&&<Empty text="No inter-client travel is awaiting review."/>}</>}
           {section === "Governance" && data && <>
             <Card><Text style={styles.heading}>Quality and safeguarding</Text>
               <Text style={styles.text}>{data.overview?.quality?.open||0} open cases · {data.overview?.quality?.overdue||0} overdue</Text>

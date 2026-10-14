@@ -405,6 +405,8 @@ export default function App() {
         { label: "Leave requests", section: "Leave requests" },
         { label: "Availability requests", section: "Availability requests" },
         { label: "Travel claims", section: "Travel claims" },
+        { label: "Time change requests", section: "Time change requests" },
+        { label: "Inter-client travel", section: "Inter-client travel" },
         ...(user?.role === "SUPERADMIN" ? [{ label: "Platform organisations", section: "Platform" }] : []),
         { label: "My account", tab: "More" },
       ];

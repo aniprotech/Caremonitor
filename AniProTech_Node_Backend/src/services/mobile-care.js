@@ -76,6 +76,12 @@ async function enforcePrnLimits(db, medication, clientId, occurredAt) {
     if(count>maximum)fail(409,"This PRN dose would exceed the prescribed maximum for its time period");
   }
 }
+function milesBetween(latitudeA, longitudeA, latitudeB, longitudeB) {
+  if (![latitudeA, longitudeA, latitudeB, longitudeB].every(Number.isFinite)) return null;
+  const rad=(value)=>value*Math.PI/180;
+  const a=Math.sin(rad(latitudeB-latitudeA)/2)**2+Math.cos(rad(latitudeA))*Math.cos(rad(latitudeB))*Math.sin(rad(longitudeB-longitudeA)/2)**2;
+  return Math.round((6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)) / 1609.344) * 100) / 100;
+}
 function proximity(latitude, longitude, address) {
   if (address?.latitude == null || address?.longitude == null) return { distanceMetres:null, withinRadius:null };
   const rad=(value)=>value*Math.PI/180,dLat=rad(latitude-address.latitude),dLon=rad(longitude-address.longitude);
@@ -247,6 +253,82 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
       return reviewed;
     });
     return reply(res,result,"Travel claim reviewed");
+  });
+  route("POST", "/api/mobile/visits/:id/time-change-requests", async (req,res) => {
+    if(req.user.role!=="CAREGIVER") fail(403,"Caregiver access required");
+    const parsed=z.object({startTime:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),endTime:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),reason:z.string().trim().min(5).max(1000)}).safeParse(req.body);
+    if(!parsed.success) fail(400,"Enter a valid new start time, end time and reason (at least 5 characters)");
+    if(parsed.data.endTime<=parsed.data.startTime) fail(400,"The proposed end time must be after the start time");
+    const v=await visit(req,true);
+    if(!["DRAFT","SCHEDULED"].includes(v.status)||v.actual_start||v.actual_end) fail(409,"Only an unstarted scheduled visit can be changed");
+    const request=await db.transaction(async()=>{
+      if((await db.query("SELECT id FROM node_finance_lines WHERE visit_id=$1 AND released=false LIMIT 1",[v.id])).rows.length) fail(409,"This visit is already included in finance and cannot be changed");
+      return (await db.query(`INSERT INTO node_visit_time_change_requests(id,agency_id,visit_id,caregiver_id,requested_start,requested_end,reason)
+        VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,status,requested_start::text AS "startTime",requested_end::text AS "endTime",reason,created_at AS "createdAt"`,
+        [randomUUID(),req.user.agencyId,v.id,req.user.id,parsed.data.startTime,parsed.data.endTime,parsed.data.reason])).rows[0];
+    });
+    await visitEvent(db,v.id,req.user.id,`Caregiver requested time change ${v.startTime}–${v.endTime} to ${parsed.data.startTime}–${parsed.data.endTime}. Reason: ${parsed.data.reason}`);
+    await notifyAdmins(req,v,"Visit time change requested",null,`Requested time: ${parsed.data.startTime}–${parsed.data.endTime}. Reason: ${parsed.data.reason}`);
+    return reply(res,request,"Time change request sent for approval",201);
+  });
+  route("GET", "/api/mobile/admin/travel-legs", async(req,res)=>{
+    auth.admin(req);
+    return reply(res,(await db.query(`SELECT leg.id,leg.from_visit_id AS "fromVisitId",leg.to_visit_id AS "toVisitId",leg.caregiver_id AS "caregiverId",leg.visit_date::text AS date,
+      leg.suggested_miles AS "suggestedMiles",leg.suggested_minutes AS "suggestedMinutes",leg.approved_miles AS "approvedMiles",leg.approved_minutes AS "approvedMinutes",leg.status,leg.reason,
+      staff.first_name||' '||staff.last_name AS "caregiverName",fromClient.first_name||' '||fromClient.last_name AS "fromClientName",toClient.first_name||' '||toClient.last_name AS "toClientName"
+      FROM node_travel_legs leg JOIN users staff ON staff.id=leg.caregiver_id JOIN node_roster_visits fv ON fv.id=leg.from_visit_id JOIN users fromClient ON fromClient.id=fv.client_id
+      JOIN node_roster_visits tv ON tv.id=leg.to_visit_id JOIN users toClient ON toClient.id=tv.client_id
+      WHERE leg.agency_id=$1 ORDER BY CASE WHEN leg.status='PENDING' THEN 0 ELSE 1 END,leg.visit_date DESC,leg.created_at DESC LIMIT 200`,[req.user.agencyId])).rows);
+  });
+  route("POST", "/api/mobile/admin/travel-legs/:id/decision", async(req,res)=>{
+    auth.admin(req);
+    const parsed=z.object({decision:z.enum(["APPROVED","DECLINED"]),miles:z.number().min(0).max(10000).optional(),minutes:z.number().int().min(0).max(1440).optional(),note:z.string().trim().max(1000).default("")}).safeParse(req.body);
+    if(!parsed.success)fail(400,"Enter a valid travel decision");
+    const result=await db.transaction(async()=>{
+      const leg=(await db.query("SELECT * FROM node_travel_legs WHERE id=$1 AND agency_id=$2 FOR UPDATE",[req.params.id,req.user.agencyId])).rows[0];
+      if(!leg)fail(404,"Travel leg not found");
+      if(leg.status!=="PENDING")fail(409,"This travel leg has already been reviewed");
+      if(parsed.data.decision==="APPROVED"&&(parsed.data.miles==null||parsed.data.minutes==null))fail(400,"Confirm both mileage and travel time before approval");
+      if((await db.query("SELECT id FROM node_finance_lines WHERE visit_id=$1 AND kind='PAYRUN' AND released=false LIMIT 1",[leg.to_visit_id])).rows.length)fail(409,"Travel is locked in a staff pay document");
+      if(parsed.data.decision==="APPROVED"){
+        await db.query(`INSERT INTO node_visit_travel(visit_id,agency_id,staff_id,miles,minutes,source,recorded_by)
+          VALUES($1,$2,$3,$4,$5,'APPROVED_INTERVISIT_LEG',$6) ON CONFLICT(visit_id) DO UPDATE SET miles=EXCLUDED.miles,minutes=EXCLUDED.minutes,source=EXCLUDED.source,revision=node_visit_travel.revision+1,recorded_by=EXCLUDED.recorded_by,updated_at=CURRENT_TIMESTAMP`,
+          [leg.to_visit_id,req.user.agencyId,leg.caregiver_id,parsed.data.miles,parsed.data.minutes,req.user.id]);
+      }
+      return (await db.query(`UPDATE node_travel_legs SET status=$2,approved_miles=$3,approved_minutes=$4,reason=$5,reviewed_by=$6,reviewed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING id,status,approved_miles AS "approvedMiles",approved_minutes AS "approvedMinutes"`,
+        [leg.id,parsed.data.decision,parsed.data.decision==="APPROVED"?parsed.data.miles:null,parsed.data.decision==="APPROVED"?parsed.data.minutes:null,parsed.data.note,req.user.id])).rows[0];
+    });
+    return reply(res,result,parsed.data.decision==="APPROVED"?"Inter-client travel approved for payroll":"Travel leg declined");
+  });
+  route("GET", "/api/mobile/admin/visit-time-change-requests", async(req,res)=>{
+    auth.admin(req);
+    return reply(res,(await db.query(`SELECT r.id,r.visit_id AS "visitId",r.caregiver_id AS "caregiverId",r.requested_start::text AS "requestedStart",r.requested_end::text AS "requestedEnd",r.reason,r.status,r.created_at AS "createdAt",r.decision_note AS "decisionNote",
+      v.visit_date::text AS date,v.title,to_char(v.start_time,'HH24:MI') AS "currentStart",to_char(v.end_time,'HH24:MI') AS "currentEnd",v.client_id AS "clientId",
+      c.first_name||' '||c.last_name AS "clientName",staff.first_name||' '||staff.last_name AS "caregiverName"
+      FROM node_visit_time_change_requests r JOIN node_roster_visits v ON v.id=r.visit_id JOIN users c ON c.id=v.client_id JOIN users staff ON staff.id=r.caregiver_id
+      WHERE r.agency_id=$1 ORDER BY CASE WHEN r.status='PENDING' THEN 0 ELSE 1 END,r.created_at DESC LIMIT 200`,[req.user.agencyId])).rows);
+  });
+  route("POST", "/api/mobile/admin/visit-time-change-requests/:id/decision", async(req,res)=>{
+    auth.admin(req);
+    const parsed=z.object({decision:z.enum(["APPROVED","DECLINED"]),note:z.string().trim().max(1000).default("")}).safeParse(req.body);
+    if(!parsed.success)fail(400,"Choose an approval decision");
+    const result=await db.transaction(async()=>{
+      const change=(await db.query("SELECT * FROM node_visit_time_change_requests WHERE id=$1 AND agency_id=$2 FOR UPDATE",[req.params.id,req.user.agencyId])).rows[0];
+      if(!change)fail(404,"Time change request not found");
+      if(change.status!=="PENDING")fail(409,"This time change has already been reviewed");
+      const v=(await db.query("SELECT * FROM node_roster_visits WHERE id=$1 AND agency_id=$2 FOR UPDATE",[change.visit_id,req.user.agencyId])).rows[0];
+      if(!v||!["DRAFT","SCHEDULED"].includes(v.status)||v.actual_start||v.actual_end)fail(409,"The visit has started or changed; review it manually");
+      if((await db.query("SELECT id FROM node_finance_lines WHERE visit_id=$1 AND released=false LIMIT 1",[v.id])).rows.length)fail(409,"This visit is already included in finance and cannot be changed");
+      const conflicts=(await db.query(`SELECT id FROM node_roster_visits WHERE agency_id=$1 AND staff_id=$2 AND visit_date=$3 AND id<>$4 AND status<>'CANCELLED'
+        AND start_time < $6::time AND end_time > $5::time LIMIT 1`,[req.user.agencyId,change.caregiver_id,v.visit_date,v.id,change.requested_start,change.requested_end])).rows;
+      if(parsed.data.decision==="APPROVED"&&conflicts.length)fail(409,"The proposed time overlaps another assigned visit. Reassign that visit or decline this request.");
+      if(parsed.data.decision==="APPROVED"){
+        await db.query("UPDATE node_roster_visits SET start_time=$2,end_time=$3,revision=revision+1,updated_by=$4,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[v.id,change.requested_start,change.requested_end,req.user.id]);
+        await visitEvent(db,v.id,req.user.id,`Approved caregiver time change to ${String(change.requested_start).slice(0,5)}–${String(change.requested_end).slice(0,5)}. ${parsed.data.note?`Note: ${parsed.data.note}`:""}`);
+      } else await visitEvent(db,v.id,req.user.id,`Declined caregiver time change. ${parsed.data.note||"No decision note recorded."}`);
+      return (await db.query("UPDATE node_visit_time_change_requests SET status=$2,reviewed_by=$3,reviewed_at=CURRENT_TIMESTAMP,decision_note=$4,updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING id,status",[change.id,parsed.data.decision,req.user.id,parsed.data.note])).rows[0];
+    });
+    return reply(res,result,parsed.data.decision==="APPROVED"?"Visit time updated":"Time change declined");
   });
   route("GET", "/api/mobile/clients/:id/care-overview", async (req, res) => {
     await auth.userAccess(req, req.params.id);
@@ -526,6 +608,22 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
     await db.query("INSERT INTO node_visit_attendance(id,visit_id,actor_id,event,latitude,longitude,accuracy,distance_metres,within_radius,client_event_id,source) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [randomUUID(),v.id,req.user.id,b.event,b.latitude,b.longitude,b.accuracy,distance,within,b.clientEventId,qrException?"QR_EXCEPTION":qrVerified?"QR":"MOBILE"]);
     if (b.event === "CHECK_IN") await db.query("UPDATE node_roster_visits SET status='IN_PROGRESS',actual_start=COALESCE(actual_start,CURRENT_TIMESTAMP),revision=revision+1,updated_by=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[v.id,req.user.id]);
     else await db.query("UPDATE node_roster_visits SET status='COMPLETED',actual_end=COALESCE(actual_end,CURRENT_TIMESTAMP),revision=revision+1,updated_by=$2,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[v.id,req.user.id]);
+    // Travel allowances never use a home/base address. A pending leg is created only
+    // when this check-in follows another checked-out client visit on the same day.
+    if (b.event === "CHECK_IN" && b.latitude != null && b.longitude != null) {
+      const prior=(await db.query(`SELECT pv.id,pa.latitude,pa.longitude,pa.created_at AS "checkedOutAt"
+        FROM node_roster_visits pv JOIN LATERAL (SELECT latitude,longitude,created_at FROM node_visit_attendance
+          WHERE visit_id=pv.id AND actor_id=$2 AND event='CHECK_OUT' ORDER BY created_at DESC LIMIT 1) pa ON true
+        WHERE pv.agency_id=$1 AND pv.staff_id=$2 AND pv.visit_date=$3 AND pv.status='COMPLETED' AND pv.id<>$4
+        ORDER BY pa.created_at DESC LIMIT 1`,[req.user.agencyId,req.user.id,v.date,v.id])).rows[0];
+      const suggestedMiles=prior?milesBetween(prior.latitude,prior.longitude,b.latitude,b.longitude):null;
+      if(prior&&suggestedMiles!=null){
+        const elapsed=Math.max(0,Math.min(1440,Math.round((Date.now()-new Date(prior.checkedOutAt).valueOf())/60000)));
+        const leg=(await db.query(`INSERT INTO node_travel_legs(id,agency_id,caregiver_id,from_visit_id,to_visit_id,visit_date,suggested_miles,suggested_minutes)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(from_visit_id,to_visit_id) DO NOTHING RETURNING id`,[randomUUID(),req.user.agencyId,req.user.id,prior.id,v.id,v.date,suggestedMiles,elapsed])).rows[0];
+        if(leg) await notifyAdmins(req,v,"Inter-client travel awaiting approval",null,`Estimated straight-line distance: ${suggestedMiles} miles. Review and confirm the payable mileage and minutes before payroll.`);
+      }
+    }
     await visitEvent(db,v.id,req.user.id,b.event === "CHECK_IN" ? qrException?"Checked in with QR exception requiring office review":qrVerified?"Checked in with client QR verification":"Checked in using the mobile app" : "Checked out using the mobile app");
     let locationStatus="NOT_REQUIRED";
     if(b.event==="CHECK_IN"){

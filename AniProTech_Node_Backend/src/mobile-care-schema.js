@@ -44,6 +44,32 @@ export async function initializeMobileCare(db) {
     reviewed_at timestamptz, decision_note text NOT NULL DEFAULT ''
   )`);
   await db.query("CREATE INDEX IF NOT EXISTS node_travel_claims_agency ON node_travel_claims(agency_id,status,submitted_at DESC)");
+  await db.query(`CREATE TABLE IF NOT EXISTS node_visit_time_change_requests (
+    id uuid PRIMARY KEY, agency_id uuid NOT NULL, visit_id uuid NOT NULL REFERENCES node_roster_visits(id) ON DELETE CASCADE,
+    caregiver_id uuid NOT NULL REFERENCES users(id), requested_start time NOT NULL, requested_end time NOT NULL,
+    reason text NOT NULL, status text NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','APPROVED','DECLINED','CANCELLED')),
+    reviewed_by uuid REFERENCES users(id), reviewed_at timestamptz, decision_note text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK(requested_end > requested_start)
+  )`);
+  await db.query("CREATE INDEX IF NOT EXISTS node_visit_time_change_requests_queue ON node_visit_time_change_requests(agency_id,status,created_at DESC)");
+  await db.query("CREATE UNIQUE INDEX IF NOT EXISTS node_visit_time_change_open ON node_visit_time_change_requests(visit_id) WHERE status='PENDING'");
+  await db.query(`CREATE TABLE IF NOT EXISTS node_travel_legs (
+    id uuid PRIMARY KEY, agency_id uuid NOT NULL, caregiver_id uuid NOT NULL REFERENCES users(id),
+    from_visit_id uuid NOT NULL REFERENCES node_roster_visits(id) ON DELETE CASCADE,
+    to_visit_id uuid NOT NULL REFERENCES node_roster_visits(id) ON DELETE CASCADE,
+    visit_date date NOT NULL, suggested_miles numeric NOT NULL DEFAULT 0 CHECK(suggested_miles BETWEEN 0 AND 10000),
+    suggested_minutes integer NOT NULL DEFAULT 0 CHECK(suggested_minutes BETWEEN 0 AND 1440),
+    approved_miles numeric, approved_minutes integer,
+    status text NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','APPROVED','DECLINED')),
+    source text NOT NULL DEFAULT 'ATTENDANCE_ESTIMATE', reason text NOT NULL DEFAULT '',
+    reviewed_by uuid REFERENCES users(id), reviewed_at timestamptz, created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(from_visit_id,to_visit_id), CHECK(from_visit_id <> to_visit_id),
+    CHECK(approved_miles IS NULL OR approved_miles BETWEEN 0 AND 10000),
+    CHECK(approved_minutes IS NULL OR approved_minutes BETWEEN 0 AND 1440)
+  )`);
+  await db.query("CREATE INDEX IF NOT EXISTS node_travel_legs_queue ON node_travel_legs(agency_id,caregiver_id,visit_date,status)");
   await db.query(`CREATE TABLE IF NOT EXISTS node_mobile_push_tokens (
     token text PRIMARY KEY, agency_id uuid NOT NULL, user_id uuid NOT NULL REFERENCES users(id),
     session_id uuid NOT NULL REFERENCES node_sessions(id) ON DELETE CASCADE,
