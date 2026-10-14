@@ -618,10 +618,14 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
         ORDER BY pa.created_at DESC LIMIT 1`,[req.user.agencyId,req.user.id,v.date,v.id])).rows[0];
       const suggestedMiles=prior?milesBetween(prior.latitude,prior.longitude,b.latitude,b.longitude):null;
       if(prior&&suggestedMiles!=null){
-        const elapsed=Math.max(0,Math.min(1440,Math.round((Date.now()-new Date(prior.checkedOutAt).valueOf())/60000)));
-        const leg=(await db.query(`INSERT INTO node_travel_legs(id,agency_id,caregiver_id,from_visit_id,to_visit_id,visit_date,suggested_miles,suggested_minutes)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(from_visit_id,to_visit_id) DO NOTHING RETURNING id`,[randomUUID(),req.user.agencyId,req.user.id,prior.id,v.id,v.date,suggestedMiles,elapsed])).rows[0];
-        if(leg) await notifyAdmins(req,v,"Inter-client travel awaiting approval",null,`Estimated straight-line distance: ${suggestedMiles} miles. Review and confirm the payable mileage and minutes before payroll.`);
+        const elapsed=Math.max(0,Math.round((Date.now()-new Date(prior.checkedOutAt).valueOf())/60000));
+        // A longer gap is a break, not business travel. This prevents any home/base
+        // journey from entering payroll and applies the agency's 80-minute policy.
+        if(elapsed<=80){
+          const leg=(await db.query(`INSERT INTO node_travel_legs(id,agency_id,caregiver_id,from_visit_id,to_visit_id,visit_date,suggested_miles,suggested_minutes)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(from_visit_id,to_visit_id) DO NOTHING RETURNING id`,[randomUUID(),req.user.agencyId,req.user.id,prior.id,v.id,v.date,suggestedMiles,elapsed])).rows[0];
+          if(leg) await notifyAdmins(req,v,"Inter-client travel awaiting approval",null,`Estimated straight-line distance: ${suggestedMiles} miles. The check-out to check-in gap was ${elapsed} minutes; review and confirm the payable mileage and minutes before payroll.`);
+        }
       }
     }
     await visitEvent(db,v.id,req.user.id,b.event === "CHECK_IN" ? qrException?"Checked in with QR exception requiring office review":qrVerified?"Checked in with client QR verification":"Checked in using the mobile app" : "Checked out using the mobile app");
