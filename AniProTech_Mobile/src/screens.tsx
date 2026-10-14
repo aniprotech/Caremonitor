@@ -1189,7 +1189,8 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
     [caseReason,setCaseReason]=useState(""),
     [orgDecisionId,setOrgDecisionId]=useState(""),
     [orgDecisionStatus,setOrgDecisionStatus]=useState(""),
-    [orgDecisionNotes,setOrgDecisionNotes]=useState("");
+    [orgDecisionNotes,setOrgDecisionNotes]=useState(""),
+    [travelLegValues,setTravelLegValues]=useState<Record<string,{miles:string;minutes:string;note:string}>>({});
   const from = today().slice(0, 8) + "01",
     to = today();
   async function open(name: string) {
@@ -1287,9 +1288,24 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
     try{await api(`/api/mobile/admin/visit-time-change-requests/${id}/decision`,"POST",{decision,note:""});await open("Time change requests")}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}
   }
+  async function loadReplacements(entry:Row){
+    setBusy(true);setError("");
+    try{
+      const result=await api<Row>(`/api/mobile/admin/visit-time-change-requests/${entry.id}/replacements`);
+      setData((rows:Row[])=>rows.map((row)=>row.id===entry.id?{...row,replacements:result.caregivers}:row));
+    }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  async function assignReplacement(entry:Row,caregiverId:string){
+    setBusy(true);setError("");
+    try{await api(`/api/mobile/admin/visit-time-change-requests/${entry.id}/assign-replacement`,"POST",{caregiverId,note:"Assigned from the available replacement list."});await open("Time change requests")}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  function travelLegValue(entry:Row){return travelLegValues[entry.id]||{miles:String(entry.suggestedMiles??""),minutes:String(entry.suggestedMinutes??""),note:""};}
+  function setTravelLegValue(entry:Row,change:Partial<{miles:string;minutes:string;note:string}>){setTravelLegValues((values)=>({...values,[entry.id]:{...travelLegValue(entry),...change}}));}
   async function decideTravelLeg(entry:Row,decision:"APPROVED"|"DECLINED"){
     setBusy(true);setError("");
-    try{await api(`/api/mobile/admin/travel-legs/${entry.id}/decision`,"POST",{decision,miles:Number(entry.suggestedMiles||0),minutes:Number(entry.suggestedMinutes||0),note:""});await open("Inter-client travel")}
+    const value=travelLegValue(entry);
+    try{await api(`/api/mobile/admin/travel-legs/${entry.id}/decision`,"POST",{decision,miles:Number(value.miles),minutes:Number(value.minutes),note:value.note.trim()});await open("Inter-client travel")}
     catch(e){setError((e as Error).message)}finally{setBusy(false)}
   }
   async function createQualityCase(){
@@ -1423,8 +1439,8 @@ export function More({ user, logout, onProfileUpdated, deviceLock, changeDeviceL
             <Text style={styles.badge}>{entry.status}</Text>
             {entry.status==="PENDING"&&<View style={styles.row}><Button disabled={busy} title="Approve" onPress={()=>void decideTravel(entry.id,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTravel(entry.id,"DECLINED")}/></View>}
           </Card>)}
-          {section === "Time change requests" && Array.isArray(data) && <><Text style={styles.muted}>Approve a caregiver request only after reviewing client needs, clashes and the next assigned visit. Approved changes update the roster and retain an audit trail.</Text>{data.map((entry:Row)=><Card key={entry.id}><Text style={styles.heading}>{entry.caregiverName} · {entry.clientName}</Text><Text style={styles.text}>{entry.date} · {entry.currentStart}–{entry.currentEnd} → {entry.requestedStart}–{entry.requestedEnd}</Text><Text style={styles.muted}>Reason: {entry.reason}</Text><Text style={styles.badge}>{entry.status}</Text>{entry.status==="PENDING"&&<View style={styles.row}><Button disabled={busy} title="Approve" onPress={()=>void decideTimeChange(entry.id,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTimeChange(entry.id,"DECLINED")}/></View>}</Card>)}{!data.length&&<Empty text="No caregiver time-change requests."/>}</>}
-          {section === "Inter-client travel" && Array.isArray(data) && <><Text style={styles.muted}>Only travel between consecutive client visits with an 80-minute or shorter gap is shown. Home/base travel and longer breaks are never captured or paid. Review the estimate and record the approved miles and minutes before payroll.</Text>{data.map((entry:Row)=><Card key={entry.id}><Text style={styles.heading}>{entry.caregiverName} · {entry.fromClientName} → {entry.toClientName}</Text><Text style={styles.text}>{entry.date} · estimate {Number(entry.suggestedMiles||0).toFixed(2)} miles · {entry.suggestedMinutes||0} minutes</Text><Text style={styles.badge}>{entry.status}</Text>{entry.status==="PENDING"&&<View style={styles.row}><Button disabled={busy} title="Approve estimate" onPress={()=>void decideTravelLeg(entry,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTravelLeg(entry,"DECLINED")}/></View>}</Card>)}{!data.length&&<Empty text="No inter-client travel is awaiting review."/>}</>}
+          {section === "Time change requests" && Array.isArray(data) && <><Text style={styles.muted}>Approve a caregiver request only after reviewing client needs, clashes and the next assigned visit. Available replacement carers are checked for active status, clashes, recorded leave, availability, credentials and mandatory training.</Text>{data.map((entry:Row)=><Card key={entry.id}><Text style={styles.heading}>{entry.caregiverName} · {entry.clientName}</Text><Text style={styles.text}>{entry.date} · {entry.currentStart}–{entry.currentEnd} → {entry.requestedStart}–{entry.requestedEnd}</Text><Text style={styles.muted}>Reason: {entry.reason}</Text><Text style={styles.badge}>{entry.status}</Text>{entry.status==="PENDING"&&<><View style={styles.row}><Button disabled={busy} title="Approve" onPress={()=>void decideTimeChange(entry.id,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTimeChange(entry.id,"DECLINED")}/><Button disabled={busy} variant="secondary" title="Find replacements" onPress={()=>void loadReplacements(entry)}/></View>{Array.isArray(entry.replacements)&&<View><Text style={styles.muted}>{entry.replacements.length?"Available at the requested time:":"No replacement carers are currently available."}</Text>{entry.replacements.map((caregiver:Row)=><Button key={caregiver.id} disabled={busy} variant="secondary" title={`Assign ${caregiver.name}`} onPress={()=>void assignReplacement(entry,caregiver.id)}/>)}</View>}</>}</Card>)}{!data.length&&<Empty text="No caregiver time-change requests."/>}</>}
+          {section === "Inter-client travel" && Array.isArray(data) && <><Text style={styles.muted}>Only travel between consecutive client visits with an 80-minute or shorter gap is shown. Home/base travel and longer breaks are never captured or paid. Road-route estimates are used when configured; otherwise a straight-line estimate is clearly marked. Confirm or edit the payable miles and minutes before payroll.</Text>{data.map((entry:Row)=>{const value=travelLegValue(entry);return <Card key={entry.id}><Text style={styles.heading}>{entry.caregiverName} · {entry.fromClientName} → {entry.toClientName}</Text><Text style={styles.text}>{entry.date} · estimate {Number(entry.suggestedMiles||0).toFixed(2)} miles · {entry.suggestedMinutes||0} minutes</Text><Text style={styles.muted}>{entry.source==="GOOGLE_ROUTES"?"Road-route estimate":"Straight-line estimate — review before approval"}</Text><Text style={styles.badge}>{entry.status}</Text>{entry.status==="PENDING"&&<><Input label="Approved miles" keyboardType="decimal-pad" value={value.miles} onChangeText={(miles)=>setTravelLegValue(entry,{miles})}/><Input label="Approved travel minutes" keyboardType="number-pad" value={value.minutes} onChangeText={(minutes)=>setTravelLegValue(entry,{minutes})}/><Input label="Review note (optional)" value={value.note} onChangeText={(note)=>setTravelLegValue(entry,{note})} multiline maxLength={1000}/><View style={styles.row}><Button disabled={busy||Number(value.miles)<0||!Number.isInteger(Number(value.minutes))||Number(value.minutes)<0} title="Approve travel" onPress={()=>void decideTravelLeg(entry,"APPROVED")}/><Button disabled={busy} variant="secondary" title="Decline" onPress={()=>void decideTravelLeg(entry,"DECLINED")}/></View></>}</Card>})}{!data.length&&<Empty text="No inter-client travel is awaiting review."/>}</>}
           {section === "Governance" && data && <>
             <Card><Text style={styles.heading}>Quality and safeguarding</Text>
               <Text style={styles.text}>{data.overview?.quality?.open||0} open cases · {data.overview?.quality?.overdue||0} overdue</Text>

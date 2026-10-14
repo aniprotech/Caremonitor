@@ -49,6 +49,9 @@ export function configuration(overrides = {}) {
     nhsPrivateJwk: process.env.NHS_PRIVATE_JWK,
     nhsJwksKeyId: process.env.NHS_JWKS_KEY_ID,
     nhsClientId: process.env.NHS_CLIENT_ID,
+    // Optional: enables server-side road-distance estimates for inter-client travel.
+    // Keep blank until the organisation approves a routing provider and key.
+    googleRoutesApiKey: process.env.GOOGLE_ROUTES_API_KEY || "",
     nhsTokenUrl: process.env.NHS_TOKEN_URL || "https://sandbox.api.service.nhs.uk/oauth2/token",
     shareAccessUrl:
       process.env.SHARE_ACCESS_URL ||

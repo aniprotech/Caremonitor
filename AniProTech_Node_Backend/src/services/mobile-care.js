@@ -102,13 +102,59 @@ function medicationDueSlots(medication, visit) {
   return [];
 }
 
-export function registerMobileCare({ db, repo, auth, files, mail, push }, route) {
+export function registerMobileCare({ db, repo, auth, files, mail, push, config }, route) {
   const formatAssessment = (value) => {
     if(Array.isArray(value))return value.map(formatAssessment).filter(Boolean).join(", ");
     if(value && typeof value==="object")return Object.entries(value).map(([key,item])=>`${key.replaceAll("_"," ")}: ${formatAssessment(item)}`).join("; ");
     return String(value ?? "").trim();
   };
   const assessmentWorkflowFields=new Set(["id","createdAt","updatedAt","deletedAt","submittedAt","submittedBy","reviewedAt","reviewedBy","reviewDetails","reviewOutcome","assessmentInprogress","reviewInprogress"]);
+  // A routing provider is optional. Until the organisation configures a key, retain a
+  // clearly-labelled straight-line estimate so office approval remains mandatory.
+  async function estimateRoadTravel(fromLatitude,fromLongitude,toLatitude,toLongitude,fallbackMinutes){
+    const fallbackMiles=milesBetween(fromLatitude,fromLongitude,toLatitude,toLongitude);
+    if(fallbackMiles==null)return null;
+    if(!config?.googleRoutesApiKey)return {miles:fallbackMiles,minutes:fallbackMinutes,source:"STRAIGHT_LINE_ESTIMATE"};
+    try {
+      const response=await fetch("https://routes.googleapis.com/directions/v2:computeRoutes",{
+        method:"POST",headers:{"content-type":"application/json","x-goog-api-key":config.googleRoutesApiKey,"x-goog-fieldmask":"routes.distanceMeters,routes.duration"},
+        body:JSON.stringify({origin:{location:{latLng:{latitude:fromLatitude,longitude:fromLongitude}}},destination:{location:{latLng:{latitude:toLatitude,longitude:toLongitude}}},travelMode:"DRIVE",routingPreference:"TRAFFIC_UNAWARE"}),
+        signal:AbortSignal.timeout(5000),
+      });
+      if(!response.ok)throw new Error(`Routing provider returned ${response.status}`);
+      const route=(await response.json()).routes?.[0];
+      const metres=Number(route?.distanceMeters),seconds=Number(String(route?.duration||"").replace("s",""));
+      if(!Number.isFinite(metres)||metres<0)throw new Error("Routing provider returned no distance");
+      return {miles:Math.round((metres/1609.344)*100)/100,minutes:Number.isFinite(seconds)&&seconds>=0?Math.max(0,Math.round(seconds/60)):fallbackMinutes,source:"GOOGLE_ROUTES"};
+    } catch {
+      return {miles:fallbackMiles,minutes:fallbackMinutes,source:"STRAIGHT_LINE_ESTIMATE"};
+    }
+  }
+  async function replacementCaregivers(agencyId, visit, requestedStart, requestedEnd, excludeId=null){
+    const candidates=(await db.query(`SELECT id,first_name||' '||last_name AS name FROM users
+      WHERE agency_id=$1 AND role='CAREGIVER' AND is_active=true AND deleted_at IS NULL AND ($2::uuid IS NULL OR id<>$2)
+      ORDER BY first_name,last_name`,[agencyId,excludeId])).rows;
+    const eligible=[];
+    for(const candidate of candidates){
+      const overlaps=(await db.query(`SELECT 1 FROM node_roster_visits WHERE agency_id=$1 AND staff_id=$2 AND visit_date=$3
+        AND status<>'CANCELLED' AND id<>$4 AND start_time<$6::time AND end_time>$5::time LIMIT 1`,[agencyId,candidate.id,visit.visit_date,visit.id,requestedStart,requestedEnd])).rows.length;
+      if(overlaps)continue;
+      const credentialBlocked=(await db.query(`SELECT 1 FROM node_staff_credentials WHERE agency_id=$1 AND staff_id=$2
+        AND (status IN ('SUSPENDED','REVOKED') OR (expires_at IS NOT NULL AND expires_at<CURRENT_DATE)) LIMIT 1`,[agencyId,candidate.id])).rows.length;
+      if(credentialBlocked)continue;
+      const trainingBlocked=(await db.query(`SELECT 1 FROM node_training_requirements r WHERE r.agency_id=$1 AND r.mandatory=true AND r.blocks_roster=true
+        AND NOT EXISTS (SELECT 1 FROM node_staff_credentials c WHERE c.agency_id=r.agency_id AND c.staff_id=$2
+          AND lower(c.kind)=lower(r.kind) AND c.status='VALID' AND (c.expires_at IS NULL OR c.expires_at>=CURRENT_DATE)) LIMIT 1`,[agencyId,candidate.id])).rows.length;
+      if(trainingBlocked)continue;
+      const absences=(await repo.find("TeamAbsenceEntity",{user:candidate.id})).filter((a)=>!a.deletedAt);
+      const start=`${visit.visit_date}T${String(requestedStart).slice(0,5)}:00`,end=`${visit.visit_date}T${String(requestedEnd).slice(0,5)}:00`;
+      if(absences.some((a)=>`${a.startDate}T${a.startTime||"00:00:00"}`<end&&`${a.endDate||a.startDate}T${a.endTime||"23:59:59"}`>start))continue;
+      const availability=(await repo.find("TeamAvailabilityEntity",{user:candidate.id})).filter((a)=>!a.deletedAt);
+      if(availability.length&&!availability.some((a)=>occursOn(a,visit.visit_date)&&a.startTime.slice(0,5)<=String(requestedStart).slice(0,5)&&a.endTime.slice(0,5)>=String(requestedEnd).slice(0,5)))continue;
+      eligible.push(candidate);
+    }
+    return eligible;
+  }
   const assessmentLabel=(name)=>name.replaceAll("_"," ").replace(/([a-z])([A-Z])/g,"$1 $2").replace(/\s+/g," ");
   async function clientSafety(clientId) {
     const profile = await repo.one("ClientInformationEntity", { user: clientId });
@@ -274,7 +320,7 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
   route("GET", "/api/mobile/admin/travel-legs", async(req,res)=>{
     auth.admin(req);
     return reply(res,(await db.query(`SELECT leg.id,leg.from_visit_id AS "fromVisitId",leg.to_visit_id AS "toVisitId",leg.caregiver_id AS "caregiverId",leg.visit_date::text AS date,
-      leg.suggested_miles AS "suggestedMiles",leg.suggested_minutes AS "suggestedMinutes",leg.approved_miles AS "approvedMiles",leg.approved_minutes AS "approvedMinutes",leg.status,leg.reason,
+      leg.suggested_miles AS "suggestedMiles",leg.suggested_minutes AS "suggestedMinutes",leg.approved_miles AS "approvedMiles",leg.approved_minutes AS "approvedMinutes",leg.source,leg.status,leg.reason,
       staff.first_name||' '||staff.last_name AS "caregiverName",fromClient.first_name||' '||fromClient.last_name AS "fromClientName",toClient.first_name||' '||toClient.last_name AS "toClientName"
       FROM node_travel_legs leg JOIN users staff ON staff.id=leg.caregiver_id JOIN node_roster_visits fv ON fv.id=leg.from_visit_id JOIN users fromClient ON fromClient.id=fv.client_id
       JOIN node_roster_visits tv ON tv.id=leg.to_visit_id JOIN users toClient ON toClient.id=tv.client_id
@@ -307,6 +353,37 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
       c.first_name||' '||c.last_name AS "clientName",staff.first_name||' '||staff.last_name AS "caregiverName"
       FROM node_visit_time_change_requests r JOIN node_roster_visits v ON v.id=r.visit_id JOIN users c ON c.id=v.client_id JOIN users staff ON staff.id=r.caregiver_id
       WHERE r.agency_id=$1 ORDER BY CASE WHEN r.status='PENDING' THEN 0 ELSE 1 END,r.created_at DESC LIMIT 200`,[req.user.agencyId])).rows);
+  });
+  route("GET", "/api/mobile/admin/visit-time-change-requests/:id/replacements", async(req,res)=>{
+    auth.admin(req);
+    const change=(await db.query("SELECT r.*,v.visit_date,v.id AS roster_visit_id FROM node_visit_time_change_requests r JOIN node_roster_visits v ON v.id=r.visit_id WHERE r.id=$1 AND r.agency_id=$2",[req.params.id,req.user.agencyId])).rows[0];
+    if(!change)fail(404,"Time change request not found");
+    if(change.status!=="PENDING")fail(409,"This time change has already been reviewed");
+    const caregivers=await replacementCaregivers(req.user.agencyId,{id:change.roster_visit_id,visit_date:change.visit_date},change.requested_start,change.requested_end,change.caregiver_id);
+    return reply(res,{caregivers},caregivers.length?"Available replacement carers found":"No available replacement carers found");
+  });
+  route("POST", "/api/mobile/admin/visit-time-change-requests/:id/assign-replacement", async(req,res)=>{
+    auth.admin(req);
+    const parsed=z.object({caregiverId:z.uuid(),note:z.string().trim().max(1000).default("")}).safeParse(req.body);
+    if(!parsed.success)fail(400,"Choose an available replacement caregiver");
+    const result=await db.transaction(async()=>{
+      const change=(await db.query("SELECT * FROM node_visit_time_change_requests WHERE id=$1 AND agency_id=$2 FOR UPDATE",[req.params.id,req.user.agencyId])).rows[0];
+      if(!change)fail(404,"Time change request not found");
+      if(change.status!=="PENDING")fail(409,"This time change has already been reviewed");
+      const v=(await db.query("SELECT * FROM node_roster_visits WHERE id=$1 AND agency_id=$2 FOR UPDATE",[change.visit_id,req.user.agencyId])).rows[0];
+      if(!v||!["DRAFT","SCHEDULED"].includes(v.status)||v.actual_start||v.actual_end)fail(409,"The visit has started or changed; review it manually");
+      if((await db.query("SELECT id FROM node_finance_lines WHERE visit_id=$1 AND released=false LIMIT 1",[v.id])).rows.length)fail(409,"This visit is already included in finance and cannot be changed");
+      const candidates=await replacementCaregivers(req.user.agencyId,v,change.requested_start,change.requested_end,change.caregiver_id);
+      const replacement=candidates.find((candidate)=>candidate.id===parsed.data.caregiverId);
+      if(!replacement)fail(409,"That caregiver is no longer available for this requested time");
+      await db.query("UPDATE node_roster_visits SET staff_id=$2,start_time=$3,end_time=$4,status='SCHEDULED',revision=revision+1,updated_by=$5,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[v.id,replacement.id,change.requested_start,change.requested_end,req.user.id]);
+      const note=`Replacement assigned: ${replacement.name}. ${parsed.data.note}`.trim();
+      await visitEvent(db,v.id,req.user.id,`Assigned replacement caregiver ${replacement.name} at requested time ${String(change.requested_start).slice(0,5)}–${String(change.requested_end).slice(0,5)}. ${parsed.data.note}`);
+      await db.query("UPDATE node_visit_time_change_requests SET status='APPROVED',reviewed_by=$2,reviewed_at=CURRENT_TIMESTAMP,decision_note=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$1",[change.id,req.user.id,note]);
+      return {visitId:v.id,replacement};
+    });
+    await push.sendToUsers(req.user.agencyId,[result.replacement.id],"You have been assigned a visit following a time-change review. Open Caremonitor to view your rota.");
+    return reply(res,result,"Replacement caregiver assigned at the requested time");
   });
   route("POST", "/api/mobile/admin/visit-time-change-requests/:id/decision", async(req,res)=>{
     auth.admin(req);
@@ -616,15 +693,17 @@ export function registerMobileCare({ db, repo, auth, files, mail, push }, route)
           WHERE visit_id=pv.id AND actor_id=$2 AND event='CHECK_OUT' ORDER BY created_at DESC LIMIT 1) pa ON true
         WHERE pv.agency_id=$1 AND pv.staff_id=$2 AND pv.visit_date=$3 AND pv.status='COMPLETED' AND pv.id<>$4
         ORDER BY pa.created_at DESC LIMIT 1`,[req.user.agencyId,req.user.id,v.date,v.id])).rows[0];
-      const suggestedMiles=prior?milesBetween(prior.latitude,prior.longitude,b.latitude,b.longitude):null;
-      if(prior&&suggestedMiles!=null){
+      if(prior){
         const elapsed=Math.max(0,Math.round((Date.now()-new Date(prior.checkedOutAt).valueOf())/60000));
         // A longer gap is a break, not business travel. This prevents any home/base
         // journey from entering payroll and applies the agency's 80-minute policy.
         if(elapsed<=80){
-          const leg=(await db.query(`INSERT INTO node_travel_legs(id,agency_id,caregiver_id,from_visit_id,to_visit_id,visit_date,suggested_miles,suggested_minutes)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(from_visit_id,to_visit_id) DO NOTHING RETURNING id`,[randomUUID(),req.user.agencyId,req.user.id,prior.id,v.id,v.date,suggestedMiles,elapsed])).rows[0];
-          if(leg) await notifyAdmins(req,v,"Inter-client travel awaiting approval",null,`Estimated straight-line distance: ${suggestedMiles} miles. The check-out to check-in gap was ${elapsed} minutes; review and confirm the payable mileage and minutes before payroll.`);
+          const estimate=await estimateRoadTravel(prior.latitude,prior.longitude,b.latitude,b.longitude,elapsed);
+          if(estimate){
+            const leg=(await db.query(`INSERT INTO node_travel_legs(id,agency_id,caregiver_id,from_visit_id,to_visit_id,visit_date,suggested_miles,suggested_minutes,source)
+              VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(from_visit_id,to_visit_id) DO NOTHING RETURNING id`,[randomUUID(),req.user.agencyId,req.user.id,prior.id,v.id,v.date,estimate.miles,estimate.minutes,estimate.source])).rows[0];
+            if(leg) await notifyAdmins(req,v,"Inter-client travel awaiting approval",null,`${estimate.source==="GOOGLE_ROUTES"?"Road-route":"Straight-line"} estimate: ${estimate.miles} miles and ${estimate.minutes} minutes. The check-out to check-in gap was ${elapsed} minutes; review and confirm the payable mileage and minutes before payroll.`);
+          }
         }
       }
     }
