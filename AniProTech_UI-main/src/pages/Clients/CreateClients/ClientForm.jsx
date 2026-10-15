@@ -4,6 +4,7 @@ import { _get, _post } from "../../../utils/ApiService";
 import { showSuccess } from "../../../utils/toaster";
 import { clientsProfileTitleOptions, clientsContactAddressTypes, clientsContactPhoneTypes } from "../../../constants";
 import { loadGoogleMapScript } from "../../../utils/loadGoogleMapScript";
+import DateField from "../../../components/DateField/DateField";
 
 const blankAddress = () => ({
     addressType: "PERMANENT_RESIDENCE",
@@ -396,7 +397,13 @@ export default function ClientForm({ editing = false }) {
                 <div className="grid gap-5 md:grid-cols-3">
                     <label className="block text-sm">Rate unit<select className="mt-2 w-full rounded border p-3" value={values.initialRateUnit} onChange={(e) => set("initialRateUnit", e.target.value)}><option value="HOURLY">Per hour</option><option value="HALF_DAY">Half day</option><option value="FULL_DAY">Full day</option><option value="SESSION_3H">Session (3 hours)</option><option value="SESSION_6H">Session (6 hours)</option><option value="WEEKLY">Per week</option></select></label>
                     <label className="block text-sm">Rate (GBP)<input className="mt-2 w-full rounded border p-3" type="number" min="0" max="1000000" step="0.01" value={values.initialRateAmount} onChange={(e) => set("initialRateAmount", e.target.value)} placeholder="Optional" /></label>
-                    <label className="block text-sm">Effective from<input className="mt-2 w-full rounded border p-3" type="date" value={values.initialRateEffectiveFrom} onChange={(e) => set("initialRateEffectiveFrom", e.target.value)} /></label>
+                    <DateField
+                        name="initialRateEffectiveFrom"
+                        label="Effective from"
+                        value={values.initialRateEffectiveFrom}
+                        onChange={(event) => set("initialRateEffectiveFrom", event.target.value)}
+                        style="width"
+                    />
                 </div>
             </section>
             <section

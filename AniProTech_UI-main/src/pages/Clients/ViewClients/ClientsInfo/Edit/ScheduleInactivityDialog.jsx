@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Info } from "lucide-react";
 import TextAreaField from "../../../../../components/TextInput/TextAreaField";
+import DateField from "../../../../../components/DateField/DateField";
 import { permanentReasons, temporaryReasons, leavingServiceReasons, inactivityTypes } from "../../../../../data/clients/clientInfoData";
 
 export const ScheduleInactivityDialog = ({ open, onClose, onSchedule, clientInactivityData }) => {
@@ -220,15 +221,13 @@ export const ScheduleInactivityDialog = ({ open, onClose, onSchedule, clientInac
                                 Starting<span className="text-red-500">*</span>
                             </label>
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <input
-                                        type="date"
-                                        value={formData.startDate}
-                                        onChange={(e) => handleChange("startDate", e.target.value)}
-                                        className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                                        // required
-                                    />
-                                </div>
+                                <DateField
+                                    name="startDate"
+                                    label=""
+                                    value={formData.startDate}
+                                    onChange={(event) => handleChange("startDate", event.target.value)}
+                                    style="width"
+                                />
                                 <div className="flex gap-2">
                                     <select
                                         value={formData.startTime}
@@ -267,15 +266,14 @@ export const ScheduleInactivityDialog = ({ open, onClose, onSchedule, clientInac
                             <div>
                                 <label className="mb-2 block text-sm font-medium text-gray-700">Ending</label>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <input
-                                            type="date"
-                                            value={formData.endDate}
-                                            onChange={(e) => handleChange("endDate", e.target.value)}
-                                            className="w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                                            required={formData.type === "TEMPORARY"}
-                                        />
-                                    </div>
+                                    <DateField
+                                        name="endDate"
+                                        label=""
+                                        value={formData.endDate}
+                                        onChange={(event) => handleChange("endDate", event.target.value)}
+                                        style="width"
+                                        required={formData.type === "TEMPORARY"}
+                                    />
                                     <div className="flex gap-2">
                                         <select
                                             value={formData.endTime}
