@@ -121,7 +121,7 @@ export const agencyAdminData = (data) => ({
     staffingCrisisPlan: data?.staffingCrisisPlan || "",
     weatherConditionsPlan: data?.weatherConditionsPlan || "",
     additionalDetails: data?.additionalDetails || "",
-    preferredContactMethod: data?.preferredContactMethod || null,
+    preferredContactMethod: Array.isArray(data?.preferredContactMethod) ? data.preferredContactMethod : (data?.preferredContactMethod ? [data.preferredContactMethod] : []),
     fundingOption: Array.isArray(data?.fundingOption) ? data?.fundingOption : [],
     carerPreferences: data?.carerPreferences || null,
     otherPreferences: data?.otherPreferences || "",

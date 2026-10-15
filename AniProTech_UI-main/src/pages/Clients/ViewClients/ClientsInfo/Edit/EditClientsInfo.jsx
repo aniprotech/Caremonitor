@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Formik, Form } from "formik";
 import clsx from "clsx";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import EditPersonalIdentity from "./EditPersonalIdentity";
 import EditClinicalDetails from "./EditClinicalDetails";
 import EditFuturePlanning from "./EditFuturePlanning";
@@ -41,7 +41,6 @@ const EditClientsInfo = () => {
     const [fundingServiceRates, setFundingServiceRates] = useState([]);
     const [fundingRateDates, setFundingRateDates] = useState({ effectiveFrom: "", effectiveTo: "" });
     const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
     const { id } = useParams();
     const draftKey = `caremonitor:client-information:${id}`;
     const [draft] = useState(() => readFormDraft(draftKey));
@@ -152,7 +151,7 @@ const EditClientsInfo = () => {
         }
     };
 
-    const handleSubmit = async (values, { setSubmitting }) => {
+    const handleSubmit = async (values, { setSubmitting, resetForm }) => {
         const nhsNumber = normaliseNhsNumber(values.clinicalDetails.nhsNumber);
         if (nhsNumber === null) {
             showError("Enter a valid 10-digit NHS number with a correct check digit, or leave it blank.");
@@ -220,10 +219,14 @@ const EditClientsInfo = () => {
                     return;
                 }
             }
+            const saved = response?.data?.results?.data;
+            if (saved) setData(saved);
             clearFormDraft(draftKey);
+            resetForm({ values });
+            setSubmitting(false);
             showSuccess(response?.data?.message || "Client information updated successfully");
-            navigate(-1);
         }
+        setSubmitting(false);
     };
 
     return (

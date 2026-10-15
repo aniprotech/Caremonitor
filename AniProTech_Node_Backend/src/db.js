@@ -168,6 +168,13 @@ export async function initializeSchema(db) {
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_reference text");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_date date");
     await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS property_financial_lpa_expiry date");
+    // Preferred contact methods are now a multi-select. Preserve legacy single
+    // selections when upgrading an existing agency database.
+    await db.query("ALTER TABLE client_information ADD COLUMN IF NOT EXISTS preferred_contact_method text");
+    await db.query(`INSERT INTO client_information_preferred_contact_methods (client_information_id,preferred_contact_method)
+      SELECT id,preferred_contact_method FROM client_information
+      WHERE preferred_contact_method IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM client_information_preferred_contact_methods p WHERE p.client_information_id=client_information.id)`);
     await db.query("CREATE TABLE IF NOT EXISTS node_clinical_terms (id uuid PRIMARY KEY, agency_id uuid NOT NULL, kind text NOT NULL CHECK(kind IN ('history','medicine','hospital','gp_practice','pharmacy')), name text NOT NULL, created_by uuid NOT NULL, created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP)");
     await db.query("ALTER TABLE node_clinical_terms DROP CONSTRAINT IF EXISTS node_clinical_terms_kind_check");
     await db.query("ALTER TABLE node_clinical_terms ADD CONSTRAINT node_clinical_terms_kind_check CHECK(kind IN ('history','medicine','hospital','gp_practice','pharmacy'))");

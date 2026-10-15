@@ -405,13 +405,14 @@ const EditAgencyAdmin = () => {
                         valueChange={(e) => setFieldValue("agencyAdmin.additionalDetails", e.target.value)}
                     />
 
-                    <RadioButtonGroup
-                        label="Preferred method of contact"
+                    <CheckboxButtonGroup
+                        label="Preferred methods of contact"
                         name="agencyAdmin.preferredContactMethod"
-                        value={agencyAdmin?.preferredContactMethod || ""}
+                        value={Array.isArray(agencyAdmin?.preferredContactMethod) ? agencyAdmin.preferredContactMethod : (agencyAdmin?.preferredContactMethod ? [agencyAdmin.preferredContactMethod] : [])}
                         options={clientsContactMethodOptions}
                         valueChange={(e) => setFieldValue("agencyAdmin.preferredContactMethod", e.target.value)}
                     />
+                    <p className="-mt-4 text-xs text-gray-500">Select every method that is suitable for this client, such as phone, email, text or WhatsApp.</p>
                 </div>
             </div>
 

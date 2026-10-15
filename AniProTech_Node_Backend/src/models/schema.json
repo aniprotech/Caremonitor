@@ -10516,8 +10516,8 @@
         {
           "name": "preferredContactMethod",
           "javaName": "preferredContactMethod",
-          "type": "Enums.ClientInformationPreferredContactMethod",
-          "column": "preferred_contact_method",
+          "type": "List<Enums.ClientInformationPreferredContactMethod>",
+          "column": "client_information_id",
           "inverse": false,
           "hidden": false,
           "audit": false,
@@ -10525,7 +10525,12 @@
           "enumName": "ClientInformationPreferredContactMethod",
           "ordinal": false,
           "required": false,
-          "unique": false
+          "unique": false,
+          "collection": {
+            "table": "client_information_preferred_contact_methods",
+            "owner": "client_information_id",
+            "value": "preferred_contact_method"
+          }
         },
         {
           "name": "fundingOption",
@@ -18150,6 +18155,7 @@
       "NOT_INVOLVED"
     ],
     "ClientInformationCommunicationOrInformationNeeds": [
+      "NO_REQUIREMENTS",
       "SPECIFIC_CONTACT_METHOD",
       "SPECIFIC_INFORMATION_FORMAT",
       "COMMUNICATION_PROFESSIONAL",
