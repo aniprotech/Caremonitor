@@ -446,6 +446,22 @@ export default function App() {
               <Text style={styles.muted}>
                 Sign in to view your visits and stay in touch with your team.
               </Text>
+              <View style={[styles.card, { marginTop: 8 }]}>
+                <Text style={styles.heading}>Explore Caremonitor first</Text>
+                <Text style={styles.muted}>
+                  View a safe, fictional product tour without signing in or requesting an email link.
+                </Text>
+                <Button
+                  title="Explore product tour"
+                  variant="secondary"
+                  disabled={busy}
+                  onPress={() => {
+                    setError("");
+                    setInfo("");
+                    setDemoMode(true);
+                  }}
+                />
+              </View>
               {!!error && (
                 <Text accessibilityRole="alert" style={styles.error}>
                   {error}
@@ -478,8 +494,6 @@ export default function App() {
                 disabled={busy || !link.trim()}
                 onPress={() => void signIn(link)}
               />
-              <Text style={styles.muted}>Want to see how Caremonitor works before signing in?</Text>
-              <Button title="Explore product tour" variant="secondary" disabled={busy} onPress={()=>{setError("");setInfo("");setDemoMode(true);}} />
               {__DEV__ && (
                 <Text style={styles.muted}>Development server: {API_URL}</Text>
               )}
