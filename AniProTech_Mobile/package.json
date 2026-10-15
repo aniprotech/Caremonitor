@@ -5,7 +5,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.17",
     "@react-native-community/datetimepicker": "9.1.0",
-    "expo": "~57.0.29",
+    "expo": "~57.0.30",
     "expo-build-properties": "~57.0.22",
     "expo-camera": "~57.0.6",
     "expo-constants": "~57.0.19",
