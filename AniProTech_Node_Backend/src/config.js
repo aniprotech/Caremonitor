@@ -32,6 +32,11 @@ export function configuration(overrides = {}) {
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
     mobileLatestPublishedVersion: process.env.MOBILE_LATEST_PUBLISHED_VERSION || "",
+    // A dedicated, non-personal account for Google Play reviewers. These values
+    // are optional and must be supplied only as encrypted production variables.
+    // Do not use an employee or customer account here.
+    playReviewEmail: process.env.PLAY_REVIEW_EMAIL?.trim().toLowerCase() || "",
+    playReviewPassword: process.env.PLAY_REVIEW_PASSWORD || "",
     inboxNotificationsEnabled: process.env.INBOX_NOTIFICATIONS_ENABLED !== 'false',
     trustProxy: process.env.TRUST_PROXY === "true",
     jwtSecret: process.env.JWT_SECRET,

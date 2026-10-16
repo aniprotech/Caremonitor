@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { fail, requireValue, uuid, reply } from "./http.js";
@@ -97,10 +97,32 @@ export function createAuth({ db, repo, config, mail }) {
       password.length > 512
     )
       fail(400, "Email and login token are required");
+    const normalizedEmail = email.toLowerCase().trim();
+    // Google Play reviewers cannot use an email inbox, OTP, or second device.
+    // This is deliberately limited to one environment-configured review account;
+    // ordinary Caremonitor users continue using one-time email links.
+    const configuredReviewEmail = config.playReviewEmail || "";
+    const configuredReviewPassword = config.playReviewPassword || "";
+    const suppliedPassword = Buffer.from(password);
+    const configuredPassword = Buffer.from(configuredReviewPassword);
+    const reviewPasswordMatches = configuredPassword.length > 0 &&
+      suppliedPassword.length === configuredPassword.length &&
+      timingSafeEqual(suppliedPassword, configuredPassword);
+    if (configuredReviewEmail && normalizedEmail === configuredReviewEmail && reviewPasswordMatches) {
+      const row = (await db.query("SELECT id FROM users WHERE lower(email)=$1", [configuredReviewEmail])).rows[0];
+      const user = row ? await repo.get("UserEntity", row.id) : null;
+      if (!user || !user.isActive || !["ADMIN", "SUPERADMIN", "CAREGIVER"].includes(user.role))
+        fail(401, "Review account is not available");
+      if (user.agencyId && !isPlatformAdmin(user)) {
+        const agency = (await db.query("SELECT status FROM node_agencies WHERE id=$1", [user.agencyId])).rows[0];
+        if (agency && agency.status !== "ACTIVE") fail(403, "Review organisation is not active");
+      }
+      return issueSession(user, device, true);
+    }
     return db.transaction(async () => {
       const { rows } = await db.query(
         "SELECT l.*,u.id AS uid FROM node_login_links l JOIN users u ON u.id=l.user_id WHERE lower(u.email)=$1 AND l.secret_hash=$2 AND l.used_at IS NULL AND l.expires_at>CURRENT_TIMESTAMP FOR UPDATE",
-        [email.toLowerCase().trim(), hash(password)],
+        [normalizedEmail, hash(password)],
       );
       if (!rows[0]) fail(401, "Invalid, expired or already used login link");
       const user = await repo.get("UserEntity", rows[0].uid);

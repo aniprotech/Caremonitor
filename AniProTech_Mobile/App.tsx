@@ -82,6 +82,7 @@ export default function App() {
     [info, setInfo] = useState(""),
     [demoMode, setDemoMode] = useState(false),
     [email, setEmail] = useState(""),
+    [accountPassword, setAccountPassword] = useState(""),
     [link, setLink] = useState(""),
     [tab, setTab] = useState("Visits"),
     [menuOpen, setMenuOpen] = useState(false),
@@ -373,6 +374,32 @@ export default function App() {
       setBusy(false);
     }
   }
+  async function signInWithAccountAccess() {
+    if (exchanging.current) return;
+    exchanging.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ user: User; accessToken: string }>("/api/auth/get-token", "POST", {
+        email: email.trim().toLowerCase(),
+        password: accountPassword,
+        deviceName: Platform.OS === "ios" ? "Caremonitor iOS" : Platform.OS === "android" ? "Caremonitor Android" : "Caremonitor web",
+      });
+      await saveToken(result.accessToken);
+      setDeviceLock(Platform.OS !== "web" && (await SecureStore.getItemAsync(lockKey(result.user.id))) === "enabled");
+      setPushEnabled(await restorePush(result.user.id));
+      setLocked(false);
+      setUser(result.user);
+      setTab(result.user.role === "CAREGIVER" ? "Visits" : "Admin");
+      setAccountPassword("");
+      setInfo("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      exchanging.current = false;
+    }
+  }
   const tabs =
     user?.role === "CAREGIVER"
       ? ["Visits", "Clients", "Inbox", "More"]
@@ -481,6 +508,25 @@ export default function App() {
                 disabled={busy || !email.trim()}
                 onPress={() => void requestLink()}
               />
+              <View style={[styles.card, { marginTop: 4 }]}>
+                <Text style={styles.heading}>Account access</Text>
+                <Text style={styles.muted}>Use this only if your organisation has provided a username and password for this device.</Text>
+                <Input
+                  label="Password"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                  autoComplete="password"
+                  value={accountPassword}
+                  onChangeText={setAccountPassword}
+                />
+                <Button
+                  title={busy ? "Please wait..." : "Sign in with account access"}
+                  variant="secondary"
+                  disabled={busy || !email.trim() || !accountPassword}
+                  onPress={() => void signInWithAccountAccess()}
+                />
+              </View>
               <View style={{ height: 12 }} />
               <Input
                 label="Or paste your email sign-in link"

@@ -16,6 +16,8 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
     dataDir: ":memory:",
     production: false,
     jwtSecret: "integration-only-secret-at-least-32-characters",
+    playReviewEmail: "reviewer@example.test",
+    playReviewPassword: "review-only-password",
     frontendUrl: "http://localhost:5173",
     corsOrigins: ["http://localhost:5173"],
     uploadDir: path.join(directory, "uploads"),
@@ -42,6 +44,14 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
     lastName: "Carer",
     email: "carer@example.test",
     role: "CAREGIVER",
+    isActive: true,
+  });
+  const reviewer = await repo.save("UserEntity", {
+    agencyId: agency,
+    firstName: "Play",
+    lastName: "Reviewer",
+    email: "reviewer@example.test",
+    role: "ADMIN",
     isActive: true,
   });
   const other = await repo.save("UserEntity", {
@@ -127,6 +137,15 @@ test("Express migration integration tests against PostgreSQL", async (t) => {
         assert.equal(sent.length, before);
       },
     );
+    await t.test("configured Play review access is reusable and does not require email or MFA", async () => {
+      const credentials = { email: reviewer.email, password: "review-only-password" };
+      const first = await call("post", "/api/auth/get-token", credentials, null);
+      assert.equal(first.status, 200, JSON.stringify(first.body));
+      assert.equal(data(first).user.email, reviewer.email);
+      const second = await call("post", "/api/auth/get-token", credentials, null);
+      assert.equal(second.status, 200, JSON.stringify(second.body));
+      assert.equal((await call("post", "/api/auth/get-token", { email: reviewer.email, password: "wrong-password" }, null)).status, 401);
+    });
     await t.test(
       "client creation, nested addresses, pagination and tenant boundaries",
       async () => {
