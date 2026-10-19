@@ -110,8 +110,8 @@ export default function PublicHomePage() {
                     </div>
                 </div>
 
-                <div className="relative min-h-[540px] lg:min-h-[620px]">
-                    <div className="absolute inset-x-0 top-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_30px_80px_rgba(15,57,85,0.18)] sm:p-7">
+                <div className="relative min-h-0 sm:min-h-[540px] lg:min-h-[620px]">
+                    <div className="relative rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_30px_80px_rgba(15,57,85,0.18)] sm:absolute sm:inset-x-0 sm:top-6 sm:p-7">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-5">
                             <div><p className="text-xs font-bold uppercase tracking-widest text-[#008dbd]">Live operations</p><h2 className="mt-1 text-xl font-bold">Today at a glance</h2></div>
                             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Service connected</span>
@@ -125,7 +125,7 @@ export default function PublicHomePage() {
                         </div>
                         <div className="mt-5 h-20 rounded-2xl bg-gradient-to-r from-[#071A33] to-[#0c5780] p-4 text-white"><p className="text-xs text-cyan-100">Connected workflow</p><p className="mt-2 font-semibold">Roster → Visit → Evidence → Finance</p></div>
                     </div>
-                    <div className="absolute -bottom-2 right-5 w-[168px] overflow-hidden rounded-[2rem] border-[6px] border-[#071A33] bg-white shadow-2xl sm:right-10 sm:w-[205px]"><img src="/caremonitor-mobile-visit.png" alt="Caremonitor mobile verified visit screen" className="h-auto w-full" /></div>
+                    <div className="relative z-10 mx-auto mt-6 w-[168px] overflow-hidden rounded-[2rem] border-[6px] border-[#071A33] bg-white shadow-2xl sm:absolute sm:-bottom-2 sm:right-10 sm:mt-0 sm:w-[205px]"><img src="/caremonitor-mobile-visit.png" alt="Caremonitor mobile verified visit screen" className="h-auto w-full" /></div>
                     <div className="absolute bottom-16 left-0 hidden max-w-[220px] rounded-2xl border border-cyan-100 bg-white p-4 shadow-xl sm:block"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-cyan-50 text-cyan-700"><ShieldCheck size={20} /></span><div><p className="text-sm font-bold">Evidence connected</p><p className="text-xs text-slate-500">Ready for authorised review</p></div></div></div>
                 </div>
             </div>
