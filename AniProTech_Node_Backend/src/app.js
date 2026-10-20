@@ -62,7 +62,8 @@ export function createApp({ db, config, mail = createMail(config), pushTransport
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || config.corsOrigins.includes(origin))
+        const requestOrigin = origin?.replace(/\/$/, "");
+        if (!requestOrigin || config.corsOrigins.includes(requestOrigin))
           callback(null, true);
         else
           callback(

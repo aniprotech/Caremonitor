@@ -3,6 +3,13 @@ export async function initializeClientFeed(db) {
   await db.query(
     "ALTER TABLE users ALTER COLUMN primary_phone TYPE text USING primary_phone::text, ALTER COLUMN secondary_phone TYPE text USING secondary_phone::text",
   );
+  await db.query(`CREATE TABLE IF NOT EXISTS node_client_care_plan_summaries (
+    client_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    agency_id uuid NOT NULL,
+    summary text NOT NULL DEFAULT '',
+    updated_by uuid REFERENCES users(id),
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
   const { entities, quote } = await import("./db.js");
   await db.query(
     `ALTER TABLE ${quote(entities.UserPrimaryAddressEntity.table)} ADD COLUMN IF NOT EXISTS latitude double precision, ADD COLUMN IF NOT EXISTS longitude double precision, ADD COLUMN IF NOT EXISTS checkin_radius integer`,

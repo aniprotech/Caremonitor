@@ -51,20 +51,22 @@ const TeamPersonalDetails = () => {
                     setFieldValue("primaryPhoneCode", val);
                 }}
                 phoneError={touched?.primaryPhone && errors?.primaryPhone}
+                required={!values?.email}
             />
 
             <TextField
                 name="email"
                 type="email"
-                label="Email Address"
+                label="Email address"
                 value={values?.email}
                 valueChange={(e) => {
                     handleChange(e);
                     validateEmail(e?.target?.value);
                 }}
                 error={emailError || (touched?.email && errors?.email)}
-                required
+                required={!values?.primaryPhone}
             />
+            <p className="-mt-3 text-xs text-slate-500">Provide either a mobile number or an email address. An invitation is sent only when an email address is available.</p>
 
             {/* Status Button Group */}
             <StatusToggleButtonGroup

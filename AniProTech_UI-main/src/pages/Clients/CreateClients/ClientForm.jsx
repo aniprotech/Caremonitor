@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { _get, _post } from "../../../utils/ApiService";
 import { showSuccess } from "../../../utils/toaster";
 import { clientsProfileTitleOptions, clientsContactAddressTypes, clientsContactPhoneTypes } from "../../../constants";
 import { loadGoogleMapScript } from "../../../utils/loadGoogleMapScript";
 import DateField from "../../../components/DateField/DateField";
+import { clearFormDraft, readFormDraft, saveFormDraft } from "../../../components/Common/FormDraftAutosave";
 
 const blankAddress = () => ({
     addressType: "PERMANENT_RESIDENCE",
@@ -37,6 +38,7 @@ const blank = () => ({
     secondaryPhoneCode: "+44",
     secondaryPhoneType: "",
     highlights: "",
+    carePlanSummary: "",
     initialRateAmount: "",
     initialRateUnit: "HOURLY",
     initialRateEffectiveFrom: new Date().toISOString().slice(0, 10),
@@ -58,6 +60,7 @@ const scalar = [
     "secondaryPhoneCode",
     "secondaryPhoneType",
     "highlights",
+    "carePlanSummary",
     "initialRateAmount",
     "initialRateUnit",
     "initialRateEffectiveFrom",
@@ -65,10 +68,15 @@ const scalar = [
 export default function ClientForm({ editing = false }) {
     const { id } = useParams(),
         navigate = useNavigate();
-    const [values, setValues] = useState(blank),
+    const draftKey = useMemo(() => `caremonitor:client-create-draft`, []),
+        [values, setValues] = useState(() => {
+            const saved = !editing ? readFormDraft(draftKey)?.values : null;
+            return { ...blank(), ...(saved || {}), addresses: saved?.addresses?.length ? saved.addresses : [blankAddress()] };
+        }),
         [loading, setLoading] = useState(editing),
         [busy, setBusy] = useState(false),
         [error, setError] = useState(""),
+        [draftStatus, setDraftStatus] = useState(() => !editing && readFormDraft(draftKey) ? "Draft recovered from this browser" : ""),
         [locatingAddress, setLocatingAddress] = useState(null),
         [photo, setPhoto] = useState(null),
         [removePhoto, setRemovePhoto] = useState(false);
@@ -89,6 +97,15 @@ export default function ClientForm({ editing = false }) {
             });
         return () => controller.abort();
     }, [id, editing]);
+    useEffect(() => {
+        if (editing) return undefined;
+        const meaningful = values.firstName || values.lastName || values.email || values.primaryPhone || values.highlights;
+        if (!meaningful) return undefined;
+        const timer = window.setTimeout(() => {
+            setDraftStatus(saveFormDraft(draftKey, values) ? "Draft saved" : "Draft could not be saved in this browser");
+        }, 800);
+        return () => window.clearTimeout(timer);
+    }, [draftKey, editing, values]);
     const set = (key, value) => setValues((v) => ({ ...v, [key]: value }));
     const addr = (index, key, value) =>
         setValues((v) => ({ ...v, addresses: v.addresses.map((a, i) => (i === index ? { ...a, [key]: value } : a)) }));
@@ -150,6 +167,7 @@ export default function ClientForm({ editing = false }) {
         e.preventDefault();
         setError("");
         if (!values.firstName.trim() || !values.lastName.trim()) return setError("First name and last name are required.");
+        if (!values.email.trim() && !String(values.primaryPhone || "").trim()) return setError("Enter at least an email address or a primary phone number.");
         for (const prefix of ["primary", "secondary"])
             if (values[prefix + "Phone"] && !values[prefix + "PhoneType"]) return setError(`Select the ${prefix} phone number type.`);
         setBusy(true);
@@ -161,6 +179,7 @@ export default function ClientForm({ editing = false }) {
             body.append("filesToRemove", JSON.stringify(removePhoto ? ["profileImage"] : []));
             if (photo) body.append("profileImage", photo);
             await _post("/api/client/create", body);
+            clearFormDraft(draftKey);
             showSuccess("Client saved");
             navigate(editing ? `/admin/clients/${id}/basic-info` : "/admin/clients");
         } catch (e) {
@@ -176,6 +195,7 @@ export default function ClientForm({ editing = false }) {
             className="mx-auto max-w-5xl space-y-6 p-5 pb-16 text-slate-800"
         >
             <h1 className="text-2xl font-semibold">{editing ? "Edit client" : "Add client"}</h1>
+            {!editing && <div className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600"><span aria-live="polite">{draftStatus || "Drafts save automatically in this browser"}</span><button type="button" className="font-medium text-blue-800 underline" onClick={() => setDraftStatus(saveFormDraft(draftKey, values) ? "Draft saved" : "Draft could not be saved in this browser")}>Save draft</button></div>}
             <nav className="flex flex-wrap gap-5">
                 {["Personal details", "Contact details", "Addresses", "Billing rate", "Highlights"].map((t, i) => (
                     <a
@@ -244,7 +264,7 @@ export default function ClientForm({ editing = false }) {
                         { value: "SHE_HER", label: "She/Her" },
                         { value: "THEY_THEM", label: "They/Them" },
                     ])}
-                    {field("dateOfBirth", "Date of birth", "date", true)}
+                    <DateField name="dateOfBirth" label="Date of birth" value={values.dateOfBirth || ""} onChange={(event) => set("dateOfBirth", event.target.value)} required />
                 </div>
             </section>
             <section
@@ -252,7 +272,8 @@ export default function ClientForm({ editing = false }) {
                 className="scroll-mt-20 space-y-5 rounded-xl border bg-white p-6"
             >
                 <h2 className="text-xl font-semibold">Contact details</h2>
-                {field("email", "Email address", "email", true)}
+                {field("email", "Email address", "email")}
+                <p className="-mt-3 text-xs text-slate-500">Email is optional. Add a phone number or email address so the care team can contact the client.</p>
                 {["primary", "secondary"].map((prefix) => (
                     <div
                         key={prefix}
@@ -424,6 +445,8 @@ export default function ClientForm({ editing = false }) {
                     onChange={(e) => set("highlights", e.target.value)}
                 />
                 <p className="text-sm text-slate-500">{(values.highlights || "").length.toLocaleString()} / 20,000 characters</p>
+                <label className="block text-sm font-medium">Care plan summary<textarea aria-label="Care plan summary" className="mt-2 min-h-28 w-full rounded border p-3 font-normal" rows={5} maxLength={4000} placeholder="A short overall summary for clients who do not need detailed service settings." value={values.carePlanSummary || ""} onChange={(e) => set("carePlanSummary", e.target.value)} /></label>
+                <p className="text-sm text-slate-500">A quick operational overview. Detailed plans and clinical information remain in Client information.</p>
             </section>
             {error && (
                 <p

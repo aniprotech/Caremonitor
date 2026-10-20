@@ -22,7 +22,10 @@ export function configuration(overrides = {}) {
       (production
         ? "https://caremonitor.aniprotech.com"
         : "http://localhost:5173,http://127.0.0.1:5173")
-    ).split(","),
+    )
+      .split(",")
+      .map((origin) => origin.trim().replace(/\/$/, ""))
+      .filter(Boolean),
     uploadDir: path.resolve(process.env.UPLOAD_DIR || "./uploads"),
     storageMode: process.env.STORAGE_MODE || (production ? "database" : "filesystem"),
     outboxDir: path.resolve(process.env.OUTBOX_DIR || "./outbox"),

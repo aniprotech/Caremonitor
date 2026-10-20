@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useFormikContext } from "formik";
 
 // Drafts stay in session storage, so a browser refresh in this tab can recover
@@ -27,12 +27,18 @@ export const saveFormDraft = (key, values) => {
 
 export default function FormDraftAutosave({ storageKey, enabled = true, onStatusChange }) {
     const { values, dirty } = useFormikContext();
+    const lastSaved = useRef("");
 
     useEffect(() => {
         if (!enabled || !dirty) return undefined;
-        onStatusChange?.("Saving draft…");
+        const serialised = JSON.stringify(values);
+        // Formik keeps `dirty` true after the first change. Do not repeatedly
+        // save or announce an unchanged draft on every parent re-render.
+        if (serialised === lastSaved.current) return undefined;
         const timer = window.setTimeout(() => {
-            onStatusChange?.(saveFormDraft(storageKey, values) ? "Draft saved automatically" : "Draft could not be saved in this browser");
+            const saved = saveFormDraft(storageKey, values);
+            if (saved) lastSaved.current = serialised;
+            onStatusChange?.(saved ? "Draft saved" : "Draft could not be saved in this browser");
         }, 700);
         return () => window.clearTimeout(timer);
     }, [enabled, dirty, onStatusChange, storageKey, values]);

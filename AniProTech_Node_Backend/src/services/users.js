@@ -6,8 +6,11 @@ import { normaliseNhsNumber } from "../nhs-number.js";
 
 export function registerUsers(ctx, route) {
   const { repo, db, auth, files } = ctx;
+  const noEmailSuffix = "@no-email.caremonitor.invalid";
+  const isNoEmailAddress = (email) => String(email || "").endsWith(noEmailSuffix);
+  const displayEmail = (email) => isNoEmailAddress(email) ? "" : email;
   async function inviteCaregiver(user, subject = "Your caregiver account is ready") {
-    if (!user.isActive || user.role !== "CAREGIVER") return;
+    if (!user.isActive || user.role !== "CAREGIVER" || isNoEmailAddress(user.email)) return;
     const login = await auth.createLoginLink(user.email);
     if (!login) return;
     const webUrl = login.link.toString();
@@ -24,6 +27,13 @@ export function registerUsers(ctx, route) {
   async function detail(req, id) {
     const user = await auth.userAccess(req, id);
     const result = await repo.serialize("UserEntity", user, { children: true });
+    result.email = displayEmail(result.email);
+    if (user.role === "USER") {
+      result.carePlanSummary = (await db.query(
+        "SELECT summary FROM node_client_care_plan_summaries WHERE client_id=$1 AND agency_id=$2",
+        [id, req.user.agencyId],
+      )).rows[0]?.summary || "";
+    }
     if (user.role !== "USER") {
       const row = (
         await db.query("SELECT groups FROM node_team_groups WHERE user_id=$1", [
@@ -119,6 +129,7 @@ export function registerUsers(ctx, route) {
         continue;
       result.push({
         ...auth.publicUser(user),
+        email: displayEmail(user.email),
         isActive,
         ...(client
           ? {
@@ -139,7 +150,16 @@ export function registerUsers(ctx, route) {
       old = id ? await auth.userAccess(req, id, { write: true }) : null;
     if (old?.role === "SUPERADMIN" && req.user.role !== "SUPERADMIN")
       fail(403, "Cannot change a super administrator");
-    const email = body.email?.trim().toLowerCase() || old?.email;
+    const suppliedEmail = String(body.email || "").trim().toLowerCase();
+    const phone = String(body.primaryPhone ?? old?.primaryPhone ?? "").trim();
+    let email = suppliedEmail || (old && !isNoEmailAddress(old.email) ? old.email : "");
+    if (!email) {
+      if (!phone) fail(400, "Enter at least an email address or a primary phone number");
+      // The existing account table uses a unique email for every person. A
+      // private internal address lets a phone-only record be scheduled without
+      // pretending that it can receive a magic-link invitation.
+      email = `contact-${randomUUID()}${noEmailSuffix}`;
+    }
     if (!z.email().safeParse(email).success)
       fail(400, "A valid email is required");
     if (
@@ -165,6 +185,7 @@ export function registerUsers(ctx, route) {
       );
     if(body.dateOfBirth && (!/^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth) || isNaN(Date.parse(body.dateOfBirth)) || new Date(body.dateOfBirth).toISOString().slice(0,10)!==body.dateOfBirth || body.dateOfBirth>new Date().toISOString().slice(0,10))) fail(400,"Enter a valid date of birth in the past");
     for(const name of ['primaryPhone','secondaryPhone']) if(body[name] && !/^[+\d ()-]{5,25}$/.test(body[name])) fail(400,"Enter a valid phone number");
+    if (String(body.carePlanSummary || "").length > 4000) fail(400, "Care plan summary must be 4,000 characters or fewer");
     const addresses = parseJson(body.addresses, undefined);
     const initialRateAmount = String(body.initialRateAmount ?? "").trim();
     const initialRateUnit = String(body.initialRateUnit || "HOURLY");
@@ -201,6 +222,12 @@ export function registerUsers(ctx, route) {
       if (parseJson(body.filesToRemove, []).includes("profileImage"))
         data.profileImagePath = null;
       const user = await repo.save("UserEntity", data);
+      if (client && body.carePlanSummary !== undefined) await db.query(
+        `INSERT INTO node_client_care_plan_summaries(client_id,agency_id,summary,updated_by)
+         VALUES($1,$2,$3,$4)
+         ON CONFLICT(client_id) DO UPDATE SET summary=EXCLUDED.summary, updated_by=EXCLUDED.updated_by, updated_at=CURRENT_TIMESTAMP`,
+        [user.id, req.user.agencyId, String(body.carePlanSummary || "").trim(), req.user.id],
+      );
       if (initialRateAmount) {
         const ratePence = Math.round(Number(initialRateAmount) * 100);
         await db.query(

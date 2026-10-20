@@ -17,7 +17,7 @@ export const clientsProfileAddressValidationSchema = Yup.object().shape({
 });
 
 export const clientContactValidationSchema = Yup.object({
-    email: Yup.string().trim().email("Invalid email address.").required("Email is required."),
+    email: Yup.string().trim().email("Invalid email address.").notRequired(),
 
     primaryPhone: Yup.string(),
     primaryPhoneType: Yup.string().when("primaryPhone", {
@@ -60,11 +60,11 @@ export const teamsValidationSchema = Yup.object({
     primaryPhone: Yup.string()
         .nullable()
         .test("is-valid-phone", "Enter a valid phone number (up to 15 digits)", (value) => !value || /^\d{10,15}$/.test(value)),
-    email: Yup.string().email("Invalid email").required("Email is required"),
+    email: Yup.string().trim().email("Invalid email").notRequired(),
     isActive: Yup.boolean().required("This is a required field"),
     role: Yup.string().required("This is a required field"),
     // groups: Yup.array().min(1, "At least one group must be selected"),
-});
+}).test("contact-method", "Enter either an email address or a mobile number", (values) => Boolean(values?.email?.trim() || String(values?.primaryPhone || "").trim()));
 
 export const teamsProfileEditValidationSchema = Yup.object({
     firstName: Yup.string().max(20, "First name must be at most 20 characters").required("This is a required field"),
@@ -73,8 +73,8 @@ export const teamsProfileEditValidationSchema = Yup.object({
         // .nullable()
         .test("is-valid-phone", "Enter a valid phone number (up to 15 digits)", (value) => !value || /^\d{10,15}$/.test(value))
         .required("This is a required field"),
-    email: Yup.string().email("Invalid email").required("Email is required"),
-});
+    email: Yup.string().email("Invalid email").notRequired(),
+}).test("contact-method", "Enter either an email address or a mobile number", (values) => Boolean(values?.email?.trim() || String(values?.primaryPhone || "").trim()));
 
 export const teamsAdditionalDetailsEditValidationSchema = Yup.object({
     dateOfBirth: Yup.string(),
