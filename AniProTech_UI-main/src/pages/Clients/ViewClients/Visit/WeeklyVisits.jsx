@@ -116,17 +116,6 @@ function VisitEditor({ initial, staff, onSave, onClose }) {
                             ))}
                         </select>
                     </label>
-                    <label>
-                        Status
-                        <select
-                            aria-label="Visit status"
-                            value={v.status}
-                            onChange={(e) => change("status", e.target.value)}
-                        >
-                            <option value="DRAFT">Draft</option>
-                            <option value="SCHEDULED">Scheduled</option>
-                        </select>
-                    </label>
                     {!v.id && (
                         <fieldset className="wv-recurrence">
                             <legend>Select frequency</legend>
@@ -389,7 +378,9 @@ export default function WeeklyVisits({ calendar = false }) {
                                     staffId: null,
                                     title: "Care visit",
                                     notes: "",
-                                    status: "DRAFT",
+                                    // New visits are immediately scheduled. Draft is retained only
+                                    // for existing historical records.
+                                    status: "SCHEDULED",
                                     repeatWeeks: 1,
                                     frequency: "WEEKLY",
                                     selectedDays: [],

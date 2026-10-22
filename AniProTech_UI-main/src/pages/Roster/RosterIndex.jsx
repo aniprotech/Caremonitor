@@ -7,7 +7,6 @@ const addDays = (d, n) => new Date(Date.parse(d) + n * 86400000).toISOString().s
 const today = () =>
     new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const monday = (d) => addDays(d, -((new Date(d).getUTCDay() + 6) % 7));
-const names = { DRAFT: "Draft", SCHEDULED: "Scheduled", IN_PROGRESS: "In progress", COMPLETED: "Completed", CANCELLED: "Cancelled" };
 const blank = (date) => ({
     date,
     clientId: "",
@@ -16,7 +15,8 @@ const blank = (date) => ({
     startTime: "09:00",
     endTime: "10:00",
     notes: "",
-    status: "DRAFT",
+    // A newly created visit is ready for the roster immediately.
+    status: "SCHEDULED",
     repeatWeeks: 1,
     requiredStaff: 1,
     openShift: false,
@@ -277,17 +277,6 @@ export default function RosterIndex() {
                                     value={editor.endTime}
                                     onChange={(e) => update("endTime", e.target.value)}
                                 />
-                            </Field>
-                            <Field label="Status">
-                                <select
-                                    className={control}
-                                    value={editor.status}
-                                    onChange={(e) => update("status", e.target.value)}
-                                >
-                                    <option value="DRAFT">Draft</option>
-                                    <option value="SCHEDULED">Scheduled</option>
-                                    {!["DRAFT", "SCHEDULED"].includes(editor.status) && <option value={editor.status}>{names[editor.status]}</option>}
-                                </select>
                             </Field>
                             {!editor.id && (
                                 <Field label="Repeat weekly">

@@ -7,7 +7,7 @@ const parseSelectedDate = (value) => {
     if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
     if (typeof value !== "string") return null;
     const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const uk = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    const uk = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
     const [, year, month, day] = iso || (uk ? [null, uk[3], uk[2], uk[1]] : []);
     if (!year) return null;
     const date = new Date(Number(year), Number(month) - 1, Number(day));

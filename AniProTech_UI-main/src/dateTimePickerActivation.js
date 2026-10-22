@@ -1,9 +1,11 @@
-// Make the full field open the browser's date/time selector, not only its small icon.
+// Keep date fields keyboard-first. Native date inputs still expose their calendar
+// button, but clicking the field itself must allow a user to type dd/mm/yyyy.
+// Time inputs retain the convenient full-field picker behaviour.
 export function activateDateTimePickers() {
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    const input = target.closest('input[type="date"], input[type="time"], input[type="datetime-local"]');
+    const input = target.closest('input[type="time"], input[type="datetime-local"]');
     if (!(input instanceof HTMLInputElement) || input.disabled || input.readOnly) return;
     try {
       input.showPicker?.();
