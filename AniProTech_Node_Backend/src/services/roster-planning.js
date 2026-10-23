@@ -17,7 +17,7 @@ function week(d) {
   return d;
 }
 export function registerPlanning(ctx, route) {
-  const { db, repo, auth, check, lock, get, select, input } = ctx;
+  const { db, repo, auth, push, check, lock, get, select, input } = ctx;
   async function ownedRecords(name, ids) {
     const model = repo.model(name),
       user = model.fields.find((f) => f.name === "user");
@@ -211,6 +211,45 @@ export function registerPlanning(ctx, route) {
       req.params.id,
     ]);
     return reply(res, {}, "Saved plan removed; visits retained");
+  });
+  route("POST", "/api/roster/bulk-assign", async (req, res) => {
+    auth.admin(req);
+    const { visitIds, staffId } = req.body || {};
+    if (!Array.isArray(visitIds) || !visitIds.length || visitIds.length > 100 || new Set(visitIds).size !== visitIds.length)
+      fail(400, "Select between 1 and 100 visits");
+    visitIds.forEach(uuid);
+    uuid(staffId);
+    await lock(req);
+    const selected = (await db.query(
+      select + " WHERE v.agency_id=$1 AND v.id=ANY($2::uuid[]) ORDER BY v.visit_date,v.start_time,v.id",
+      [req.user.agencyId, visitIds],
+    )).rows;
+    if (selected.length !== visitIds.length) fail(404, "One or more selected visits were not found");
+    if (selected.some((v) => v.staffId || !["DRAFT", "SCHEDULED"].includes(v.status)))
+      fail(409, "Only unallocated draft or scheduled visits can be bulk assigned");
+
+    // Validate everything before writing so a rejected bulk action cannot leave a
+    // partially allocated rota behind.
+    const proposed = selected.map((v) => ({ ...v, staffId, status: "SCHEDULED", repeatWeeks: 1 }));
+    for (let i = 0; i < proposed.length; i += 1) {
+      const v = proposed[i];
+      for (let j = 0; j < i; j += 1) {
+        const prior = proposed[j];
+        if (prior.date === v.date && minute(prior.startTime) < minute(v.endTime) && minute(prior.endTime) > minute(v.startTime))
+          fail(409, "Selected visits overlap each other; split the selection or choose another caregiver");
+      }
+      await check(req, v, v.id);
+    }
+    for (const v of proposed) {
+      await db.query(
+        "UPDATE node_roster_visits SET staff_id=$2,status='SCHEDULED',open_shift=false,revision=revision+1,updated_by=$3,updated_at=CURRENT_TIMESTAMP WHERE id=$1",
+        [v.id, staffId, req.user.id],
+      );
+      await visitEvent(db, v.id, req.user.id, "Bulk roster assignment applied");
+    }
+    const staff = await repo.one("UserEntity", { id: staffId });
+    req.afterCommit.push(() => push?.sendToUsers?.(req.user.agencyId, [staffId], `You have ${proposed.length} newly assigned visit${proposed.length === 1 ? "" : "s"}. Open Caremonitor to view your rota.`));
+    return reply(res, { count: proposed.length, staffName: staff ? [staff.firstName, staff.lastName].filter(Boolean).join(" ") : "Caregiver" }, "Bulk roster assignment applied");
   });
   route("POST", "/api/roster/planning/preview", async (req, res) => {
     auth.admin(req);

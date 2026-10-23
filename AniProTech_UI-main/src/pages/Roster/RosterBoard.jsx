@@ -32,6 +32,7 @@ export default function RosterBoard({ week, setWeek, visits, options, loading, e
         [busy, setBusy] = useState(false),
         [planError, setPlanError] = useState(""),
         [selected, setSelected] = useState([]),
+        [bulkStaff, setBulkStaff] = useState(""),
         [run, setRun] = useState(""),
         [clock, setClock] = useState(new Date());
     useEffect(() => {
@@ -133,6 +134,8 @@ export default function RosterBoard({ week, setWeek, visits, options, loading, e
         setPlan(key);
         setPreview(null);
         setName("");
+        setBulkStaff("");
+        setSelected([]);
         setPlanError("");
         setMenu(null);
     };
@@ -395,6 +398,7 @@ export default function RosterBoard({ week, setWeek, visits, options, loading, e
                                     <button onClick={() => openPlan("SAVE")}>Save week as template</button>
                                     <button onClick={() => openPlan("TEMPLATE")}>Apply template</button>
                                     <button onClick={() => openPlan("AUTO")}>Suggest assignments</button>
+                                    <button onClick={() => openPlan("BULK")}>Bulk allocate visits</button>
                                 </div>
                             )}
                         </div>
@@ -518,7 +522,9 @@ export default function RosterBoard({ week, setWeek, visits, options, loading, e
                                       ? "Save rota template"
                                       : plan === "AUTO"
                                         ? "Suggest assignments"
-                                        : "Apply rota template"}
+                                        : plan === "BULK"
+                                          ? "Bulk allocate visits"
+                                          : "Apply rota template"}
                             </h2>
                             <button
                                 disabled={busy}
@@ -538,7 +544,54 @@ export default function RosterBoard({ week, setWeek, visits, options, loading, e
                                 {planError}
                             </p>
                         )}
-                        {["RUN", "SAVE"].includes(plan) ? (
+                        {plan === "BULK" ? (
+                            <>
+                                <p>
+                                    Select unallocated visits from this week and assign them to one caregiver. Availability, absence, credentials, workload, rest, travel time and clashes are checked before anything is saved.
+                                </p>
+                                <label>
+                                    Caregiver
+                                    <select
+                                        aria-label="Caregiver for bulk allocation"
+                                        value={bulkStaff}
+                                        onChange={(e) => setBulkStaff(e.target.value)}
+                                    >
+                                        <option value="">Choose caregiver</option>
+                                        {options.staff.map((staff) => (
+                                            <option key={staff.id} value={staff.id}>{staff.name}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <div className="rb-run-picks">
+                                    {visits.filter((v) => !v.staffId && ["DRAFT", "SCHEDULED"].includes(v.status) && v.date >= week && v.date <= add(week, 6)).map((v) => (
+                                        <label key={v.id}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selected.includes(v.id)}
+                                                onChange={(e) => setSelected((items) => e.target.checked ? [...items, v.id] : items.filter((id) => id !== v.id))}
+                                            />
+                                            {label(v.date)} {v.startTime}–{v.endTime} · {v.clientName} · {v.title}
+                                        </label>
+                                    ))}
+                                    {!visits.some((v) => !v.staffId && ["DRAFT", "SCHEDULED"].includes(v.status) && v.date >= week && v.date <= add(week, 6)) && (
+                                        <p>There are no unallocated visits in this week.</p>
+                                    )}
+                                </div>
+                                <button
+                                    className="rb-primary"
+                                    disabled={busy || !bulkStaff || !selected.length}
+                                    onClick={() => invoke(async () => {
+                                        const response = await _post("/api/roster/bulk-assign", { visitIds: selected, staffId: bulkStaff });
+                                        setPlan(null);
+                                        setSelected([]);
+                                        onReload();
+                                        return response;
+                                    })}
+                                >
+                                    {busy ? "Checking allocation…" : `Allocate ${selected.length || "selected"} visit${selected.length === 1 ? "" : "s"}`}
+                                </button>
+                            </>
+                        ) : ["RUN", "SAVE"].includes(plan) ? (
                             <>
                                 <label>
                                     Name

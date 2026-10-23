@@ -294,6 +294,24 @@ test("Reviewed roster planning", async (t) => {
         );
       },
     );
+    await t.test("Bulk allocation assigns the selected visits together", async () => {
+      const first = await create("2026-12-10", "09:00", "10:00");
+      const second = await create("2026-12-10", "11:00", "12:00", client2.id);
+      const result = await call("post", "/api/roster/bulk-assign", {
+        visitIds: [first.id, second.id],
+        staffId: staff.id,
+      });
+      assert.equal(result.status, 200, result.body.message);
+      assert.equal(data(result).count, 2);
+      const assigned = await db.query(
+        "SELECT staff_id,status FROM node_roster_visits WHERE id=ANY($1::uuid[]) ORDER BY start_time",
+        [[first.id, second.id]],
+      );
+      assert.deepEqual(
+        assigned.rows.map((row) => [row.staff_id, row.status]),
+        [[staff.id, "SCHEDULED"], [staff.id, "SCHEDULED"]],
+      );
+    });
   } finally {
     await db.close();
   }
